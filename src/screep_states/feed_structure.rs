@@ -1,12 +1,6 @@
-use super::{ScreepState, TickResult};
-use crate::state_controllers::StateController;
-use screeps::{
-    constants::ResourceType,
-    local::ObjectId,
-    objects::Creep,
-    prelude::*,
-};
+use super::{ScreepState, StateNames, TickResult};
 use screeps::action_error_codes::TransferErrorCode;
+use screeps::{constants::ResourceType, local::ObjectId, objects::Creep, prelude::*};
 use wasm_bindgen::JsCast;
 
 pub struct FeedStructureState<T: Transferable + MaybeHasId + JsCast> {
@@ -20,15 +14,15 @@ impl<T: Transferable + MaybeHasId + JsCast> FeedStructureState<T> {
 }
 
 impl<T: Transferable + MaybeHasId + JsCast> ScreepState for FeedStructureState<T> {
-    fn on_start(&self, creep: &Creep, _sc: &mut StateController) {
+    fn on_start(&self, creep: &Creep) {
         let _ = creep.say("💪", false);
     }
 
     fn get_state_name(&self) -> &'static str {
-        "FeedStructure"
+        StateNames::FeedStructure.into()
     }
 
-    fn tick(&mut self, creep: &Creep) -> TickResult {
+    fn tick(&self, creep: &Creep) -> TickResult {
         if creep.store().get_used_capacity(Some(ResourceType::Energy)) == 0 {
             return TickResult::Exit;
         }

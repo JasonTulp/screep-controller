@@ -1,5 +1,4 @@
-use super::{ScreepState, TickResult};
-use crate::state_controllers::StateController;
+use super::{ScreepState, StateNames, TickResult};
 use log::warn;
 use screeps::{
     constants::ResourceType,
@@ -20,15 +19,15 @@ impl HarvestState {
 }
 
 impl ScreepState for HarvestState {
-    fn on_start(&self, creep: &Creep, _sc: &mut StateController) {
+    fn on_start(&self, creep: &Creep) {
         let _ = creep.say("⚡", false);
     }
 
     fn get_state_name(&self) -> &'static str {
-        "Harvest"
+        StateNames::Harvest.into()
     }
 
-    fn tick(&mut self, creep: &Creep) -> TickResult {
+    fn tick(&self, creep: &Creep) -> TickResult {
         // Check if we have any free capacity to harvest energy
         if creep.store().get_free_capacity(Some(ResourceType::Energy)) == 0 {
             return TickResult::Exit;

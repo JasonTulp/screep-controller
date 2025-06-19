@@ -1,12 +1,11 @@
-use super::{ScreepState, TickResult};
-use crate::state_controllers::StateController;
+use super::{ScreepState, StateNames, TickResult};
 use log::warn;
+use screeps::action_error_codes::UpgradeControllerErrorCode;
 use screeps::{
     constants::ResourceType,
     local::ObjectId,
     objects::{Creep, StructureController},
 };
-use screeps::action_error_codes::UpgradeControllerErrorCode;
 
 // UpgradeState is used to upgrade the room controller
 pub struct UpgradeState {
@@ -20,16 +19,15 @@ impl UpgradeState {
 }
 
 impl ScreepState for UpgradeState {
-    fn on_start(&self, creep: &Creep, state_controller: &mut StateController) {
-        state_controller.upgrade_creeps += 1;
+    fn on_start(&self, creep: &Creep) {
         let _ = creep.say("⬆️", false);
     }
 
     fn get_state_name(&self) -> &'static str {
-        "Upgrade"
+        StateNames::Upgrade.into()
     }
 
-    fn tick(&mut self, creep: &Creep) -> TickResult {
+    fn tick(&self, creep: &Creep) -> TickResult {
         if creep.store().get_used_capacity(Some(ResourceType::Energy)) == 0 {
             return TickResult::Exit;
         }
@@ -55,10 +53,5 @@ impl ScreepState for UpgradeState {
                 };
             }
         }
-    }
-
-    fn on_exit(&self, state_controller: &mut StateController) {
-        // Decrease the count of upgrade creeps when exiting this state
-        state_controller.upgrade_creeps = state_controller.upgrade_creeps.saturating_sub(1);
     }
 }

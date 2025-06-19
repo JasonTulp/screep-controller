@@ -24,7 +24,8 @@
   "homepage": "https://github.com/rustyscreeps/screeps-starter-rust",
   "screeps_bot": true,
   "dependencies": {
-    "fastestsmallesttextencoderdecoder-encodeinto": "^1.0.22"
+    "fastestsmallesttextencoderdecoder-encodeinto": "^1.0.22",
+    "fs-extra": "^11.3.0"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.25.3",

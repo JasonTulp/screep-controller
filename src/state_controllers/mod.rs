@@ -1,75 +1,175 @@
 // Contains core State Controller logic for managing Screep states
+use crate::screep_states::StateNames;
 use crate::screep_states::*;
-use crate::{info};
-use log::warn;
-use screeps::{
-    constants::ResourceType,
-    enums::StructureObject,
-    find,
-    objects::Creep,
-    prelude::*,
-};
-use std::collections::HashMap;
 use crate::utils::prelude::*;
+use crate::{get_best_worker_body, info};
+use log::warn;
+use screeps::{constants::ResourceType, enums::StructureObject, find, game, objects::Creep, prelude::*, Part, Room, SpawnOptions};
+use std::collections::HashMap;
 
-// pub trait StateController {
-//     
-// }
-
-pub struct StateController {
-    pub upgrade_creeps: u8,
-    pub build_creeps: u8,
+/// The SCManager is responsible for managing the state controllers of all creeps in the room.
+pub struct SCManager {
+    pub state_controllers: HashMap<String, Box<dyn StateController>>,
+    pub specialty_count: HashMap<String, u8>,
 }
 
-impl StateController {
+impl SCManager {
     pub fn new() -> Self {
-        StateController {
-            upgrade_creeps: 0,
-            build_creeps: 0,
+        SCManager {
+            state_controllers: HashMap::new(),
+            specialty_count: HashMap::new(),
         }
     }
 
-    /// Run a tick for the given creep and update its state
-    pub fn run_tick(
-        &mut self,
-        creep: &Creep,
-        creep_states: &mut HashMap<String, Box<dyn ScreepState>>,
-    ) {
-        let name = creep.name();
-        if let Some(state) = creep_states.get_mut(&name) {
-            match state.tick(creep) {
-                TickResult::Continue => {
-                    // Continue running the current state
-                    return;
-                }
-                TickResult::ChangeState(new_state) => {
-                    // Exit the current state
-                    state.on_exit(self);
-                    new_state.on_start(creep, self);
-                    new_state.log_state(creep);
-                    // Insert the new state
-                    creep_states.insert(name.clone(), new_state);
-                }
-                TickResult::Exit => {
-                    // Exit the current state and remove it from the map
-                    state.on_exit(self);
-                    let new_state: Box<dyn ScreepState> = self.choose_next_state(creep);
-                    new_state.on_start(creep, self);
-                    new_state.log_state(creep);
-                    creep_states.insert(name.clone(), new_state);
+    pub fn run(&mut self) {
+        self.run_spawns();
+        // Run the tick for all state controllers
+        self.run_tick_for_all();
+    }
+
+    pub fn run_tick_for_all(&mut self) {
+        for creep in game::creeps().values() {
+            let name = creep.name();
+            let mut maybe_controller = self.state_controllers.get_mut(&name);
+            if let Some(controller) = maybe_controller {
+                controller.run_tick(&creep);
+            } else {
+                self.spawn_new_controller(&creep);
+            }
+        }
+    }
+
+    /// Check if we need to spawn any more creeps, and trigger spawn if we can
+    pub fn run_spawns(&mut self) {
+        let mut additional = 0;
+        let creep_count = game::creeps().values().count();
+        // info!("creep count: {}", creep_count);
+        if creep_count < 5 {
+            for spawn in game::spawns().values() {
+                info!("running spawn {}", spawn.name());
+                info!(
+                    "Energy available: {}",
+                    spawn.room().unwrap().energy_available()
+                );
+
+                // TODO determine which specialist it is, then what body based on specialist
+                let body = get_best_worker_body(&spawn.room().unwrap());
+                if spawn.room().unwrap().energy_available() >= body.iter().map(|p| p.cost()).sum() {
+                    // create a unique name, spawn.
+                    let name_base = game::time();
+                    let name = format!("{}-{}", name_base, additional);
+                    // let options = SpawnOptions {
+                    //     memory: Some(serde_json::json!({
+                    //         "specialisation": "Generalist",
+                    //     })),
+                    //     ..Default::default()
+                    // };
+                    match spawn.spawn_creep(&body, &name) {
+                        Ok(()) => additional += 1,
+                        Err(e) => warn!("couldn't spawn: {:?}", e),
+                    }
                 }
             }
-        } else {
-            // If no state exists, we can initialize a default state
-            let initial_state: Box<dyn ScreepState> = self.choose_next_state(creep);
-            initial_state.on_start(creep, self);
-            initial_state.log_state(creep);
-            creep_states.insert(name, initial_state);
         }
     }
 
+    /// Spawn a new state controller for the given creep
+    /// This is where we control how many of each controller we need
+    fn spawn_new_controller(&mut self, creep: &Creep) {
+        warn!("Spawning new state controller for creep {}", creep.name());
+        let specialisation = "Generalist"; //creep.memory().is_object().unwrap_or("Generalist");
+        let new_controller = match specialisation {
+            "Generalist" => Box::new(SCGeneralist::new()),
+            // Add more specializations here as needed
+            _ => Box::new(SCGeneralist::new()),
+        };
+        // Add the new controller to the map
+        self.state_controllers
+            .insert(creep.name().to_string(), new_controller);
+    }
+
+    fn count_specialties(&mut self) {
+        // TODO Count specialties and key based on room
+    }
+
+    pub fn get_specialty_count(&self, creep_name: &str) -> u8 {
+        self.specialty_count.get(creep_name).unwrap_or(&0).clone()
+    }
+}
+
+pub trait StateController {
+    /// Get the name of the controller for logging purposes
+    fn get_name(&self) -> &'static str;
+
+    /// Run a tick for the given creep and update its state
+    fn run_tick(&mut self, creep: &Creep) {
+        let name = creep.name();
+        match self.current_state().tick(creep) {
+            TickResult::Continue => {
+                // Continue running the current state
+                return;
+            }
+            TickResult::ChangeState(new_state) => {
+                // Exit the current state
+                self.current_state().on_exit();
+                new_state.on_start(creep);
+                new_state.log_state(creep);
+                // set creep state to the new state
+                self.set_current_state(new_state);
+            }
+            TickResult::Exit => {
+                // Exit the current state and remove it from the map
+                self.current_state().on_exit();
+                let new_state: Box<dyn ScreepState> = self.choose_next_state(creep);
+                new_state.on_start(creep);
+                new_state.log_state(creep);
+                self.set_current_state(new_state);
+            }
+        }
+    }
+
+    // What is the current state of the controller
+    fn current_state(&self) -> &Box<dyn ScreepState>;
+
+    /// Set the current state of the controller
+    fn set_current_state(&mut self, state: Box<dyn ScreepState>);
+
     /// Choose the next state based on the current needs of the room
-    pub fn choose_next_state(&mut self, creep: &Creep) -> Box<dyn ScreepState> {
+    fn choose_next_state(&mut self, creep: &Creep) -> Box<dyn ScreepState>;
+
+    /// Get the best worker body for the current state controller
+    fn get_best_worker_body(&self, _room: &Room, _max_energy: u32) -> Vec<Part> {
+        vec![Part::Move, Part::Move, Part::Carry, Part::Work]
+    }
+}
+
+/// Generalist State Controller for managing a sawdcreep that performs a variety of tasks
+pub struct SCGeneralist {
+    pub current_state: Box<dyn ScreepState>,
+}
+
+impl SCGeneralist {
+    pub fn new() -> Self {
+        SCGeneralist {
+            current_state: Box::new(IdleState {}),
+        }
+    }
+}
+
+impl StateController for SCGeneralist {
+    fn get_name(&self) -> &'static str {
+        "Generalist"
+    }
+
+    fn current_state(&self) -> &Box<dyn ScreepState> {
+        &self.current_state
+    }
+
+    fn set_current_state(&mut self, state: Box<dyn ScreepState>) {
+        self.current_state = state;
+    }
+
+    fn choose_next_state(&mut self, creep: &Creep) -> Box<dyn ScreepState> {
         let room = creep.room().expect("couldn't resolve creep room");
         let energy = creep.store().get_used_capacity(Some(ResourceType::Energy));
         if energy == 0 {
@@ -120,11 +220,13 @@ impl StateController {
         }
 
         // limit build creeps to 2, only build if we have an upgrade creep
-        if self.build_creeps < 2 && self.upgrade_creeps > 0 {
-            if let Some(site) = find_nearest_construction_site(creep, &room) {
-                return Box::new(BuildState::new(site.clone()));
-            }
-        }
+        // TODO
+        // if sc_manager.get_specialty_count(StateNames::Build.into()) < 2 &&
+        //     sc_manager.get_specialty_count(StateNames::Upgrade.into()) > 0 {
+        //     if let Some(site) = find_nearest_construction_site(creep, &room) {
+        //         return Box::new(BuildState::new(site.clone()));
+        //     }
+        // }
 
         // Check if we have energy, if we do, upgrade controller
         if energy > 0 {

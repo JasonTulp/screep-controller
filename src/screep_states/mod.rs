@@ -2,11 +2,10 @@ pub use build::BuildState;
 pub use feed_structure::FeedStructureState;
 pub use harvest::HarvestState;
 pub use idle::IdleState;
-pub use upgrade::UpgradeState; 
 use log::info;
 use screeps::objects::Creep;
 use screeps::SharedCreepProperties;
-use crate::state_controllers::StateController;
+pub use upgrade::UpgradeState;
 
 mod build;
 mod feed_structure;
@@ -14,11 +13,30 @@ mod harvest;
 mod idle;
 mod upgrade;
 
+pub enum StateNames {
+    Harvest,
+    Upgrade,
+    Build,
+    FeedStructure,
+    Idle,
+}
+
+impl From<StateNames> for &'static str {
+    fn from(state: StateNames) -> Self {
+        match state {
+            StateNames::Harvest => "Harvest",
+            StateNames::Upgrade => "Upgrade",
+            StateNames::Build => "Build",
+            StateNames::FeedStructure => "FeedStructure",
+            StateNames::Idle => "Idle",
+        }
+    }
+}
 
 // What state is this screep in
 pub trait ScreepState {
     /// Called when the state is started, can be used to initialize counters or send messages
-    fn on_start(&self, creep: &Creep, _state_controller: &mut StateController) {
+    fn on_start(&self, creep: &Creep) {
         let _ = creep.say("🌀", false);
     }
 
@@ -35,10 +53,10 @@ pub trait ScreepState {
     fn get_state_name(&self) -> &'static str;
 
     /// Run a tick for the given creep and return the result
-    fn tick(&mut self, creep: &Creep) -> TickResult;
+    fn tick(&self, creep: &Creep) -> TickResult;
 
     /// Called when the state is exited, can be used to clean up or reset counters
-    fn on_exit(&self, _state_controller: &mut StateController) {
+    fn on_exit(&self) {
         return;
     }
 }

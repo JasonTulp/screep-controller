@@ -1,5 +1,4 @@
-use super::{ScreepState, TickResult};
-use crate::state_controllers::StateController;
+use super::{ScreepState, StateNames, TickResult};
 use log::warn;
 use screeps::action_error_codes::BuildErrorCode;
 use screeps::{
@@ -20,16 +19,15 @@ impl BuildState {
 }
 
 impl ScreepState for BuildState {
-    fn on_start(&self, creep: &Creep, state_controller: &mut StateController) {
-        state_controller.build_creeps += 1;
+    fn on_start(&self, creep: &Creep) {
         let _ = creep.say("⚒️", false);
     }
 
     fn get_state_name(&self) -> &'static str {
-        "Build"
+        StateNames::Build.into()
     }
 
-    fn tick(&mut self, creep: &Creep) -> TickResult {
+    fn tick(&self, creep: &Creep) -> TickResult {
         if creep.store().get_used_capacity(Some(ResourceType::Energy)) == 0 {
             return TickResult::Exit;
         }
@@ -59,10 +57,5 @@ impl ScreepState for BuildState {
                 };
             }
         }
-    }
-
-    fn on_exit(&self, state_controller: &mut StateController) {
-        // Decrease the count of build creeps when exiting this state
-        state_controller.build_creeps = state_controller.build_creeps.saturating_sub(1);
     }
 }

@@ -1,16 +1,11 @@
 extern crate core;
 
+use js_sys::{JsString, Object, Reflect};
+use log::*;
+use screeps::{constants::Part, game, objects::Room, prelude::*};
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
-};
-use js_sys::{JsString, Object, Reflect};
-use log::*;
-use screeps::{
-    constants::Part,
-    game,
-    objects::Room,
-    prelude::*,
 };
 use wasm_bindgen::prelude::*;
 
@@ -19,15 +14,32 @@ mod screep_states;
 mod state_controllers;
 mod utils;
 
-use state_controllers::StateController;
+use crate::state_controllers::SCManager;
 use screep_states::*;
+use state_controllers::SCGeneralist;
 
 // this is one way to persist data between ticks within Rust's memory, as opposed to
 // keeping state in memory on game objects - but will be lost on global resets!
 thread_local! {
-    static CREEP_STATES: RefCell<HashMap<String, Box<dyn ScreepState>>> = RefCell::new(HashMap::new());
-    static STATE_CONTROLLER: RefCell<StateController> = RefCell::new(StateController::new());
+    // static CREEP_STATES: RefCell<HashMap<String, Box<dyn ScreepState>>> = RefCell::new(HashMap::new());
+    static STATE_CONTROLLERS: RefCell<HashMap<String, Box<dyn ScreepState>>> = RefCell::new(HashMap::new());
+    static STATE_MANAGER: RefCell<SCManager> = RefCell::new(SCManager::new());
 }
+
+// #[derive(Debug, Deserialize, Serialize)]
+// struct MyStruct {
+//     id: u32,
+//     name: String,
+// }
+// 
+// use serde_wasm_bindgen::{from_value, to_value};
+// use wasm_bindgen::JsValue;
+// use serde::{Deserialize, Serialize};
+// 
+// fn convert(js_value: JsValue) -> Result<MyStruct, JsValue> {
+//     // Deserialize the JsValue into MyStruct
+//     from_value(js_value)
+// }
 
 static INIT_LOGGING: std::sync::Once = std::sync::Once::new();
 
@@ -43,44 +55,11 @@ pub fn game_loop() {
     });
 
     debug!("loop starting! CPU: {}", game::cpu::get_used());
-
-    STATE_CONTROLLER.with(|state_controller_refcell| {
-        let mut sc = state_controller_refcell.borrow_mut();
-        // mutably borrow the creep_targets refcell, which is holding our creep target locks
-        // in the wasm heap
-        CREEP_STATES.with(|creep_targets_refcell| {
-            let mut creep_targets = creep_targets_refcell.borrow_mut();
-            // debug!("running creeps");
-            for creep in game::creeps().values() {
-                sc.run_tick(&creep, &mut creep_targets);
-            }
-        });
+    STATE_MANAGER.with(|state_manager_refcell| {
+        let mut state_manager = state_manager_refcell.borrow_mut();
+        // run the tick for all state controllers
+        state_manager.run();
     });
-
-    debug!("running spawns");
-    let mut additional = 0;
-    let creep_count = game::creeps().values().count();
-    // info!("creep count: {}", creep_count);
-    if creep_count < 5 {
-        for spawn in game::spawns().values() {
-            info!("running spawn {}", spawn.name());
-            info!(
-                "Energy available: {}",
-                spawn.room().unwrap().energy_available()
-            );
-
-            let body = get_best_worker_body(&spawn.room().unwrap());
-            if spawn.room().unwrap().energy_available() >= body.iter().map(|p| p.cost()).sum() {
-                // create a unique name, spawn.
-                let name_base = game::time();
-                let name = format!("{}-{}", name_base, additional);
-                match spawn.spawn_creep(&body, &name) {
-                    Ok(()) => additional += 1,
-                    Err(e) => warn!("couldn't spawn: {:?}", e),
-                }
-            }
-        }
-    }
 
     // memory cleanup; memory gets created for all creeps upon spawning, and any time move_to
     // is used; this should be removed if you're using RawMemory/serde for persistence
@@ -139,4 +118,3 @@ fn get_best_worker_body(room: &Room) -> Vec<Part> {
 
     return base_body;
 }
-
