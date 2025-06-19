@@ -1,8 +1,8 @@
 use crate::screep_states::*;
+use crate::utils;
 use crate::utils::prelude::*;
-use crate::{info, utils};
 use log::warn;
-use screeps::{constants::ResourceType, enums::StructureObject, find, objects::Creep, prelude::*, Part, Room};
+use screeps::{constants::ResourceType, enums::StructureObject, find, objects::Creep, prelude::*, ObjectId, Part, Room};
 
 use super::{Specialisation, StateController};
 
@@ -36,12 +36,36 @@ impl StateController for SCGeneralist {
         let room = creep.room().expect("couldn't resolve creep room");
         let energy = creep.store().get_used_capacity(Some(ResourceType::Energy));
         if energy == 0 {
-            // Attempt to find some sources to harvest
-            if let Some(source) = find_nearest_object(creep, &room, find::SOURCES_ACTIVE) {
-                return Box::new(HarvestState::new(source));
+            // Find the closest container with energy to drain
+            let mut closest_container: Option<ObjectId<screeps::objects::StructureContainer>> = None;
+            let mut min_distance = u32::MAX;
+            for structure in room.find(find::STRUCTURES, None).iter() {
+                if let StructureObject::StructureContainer(container) = structure {
+                    if container
+                        .store()
+                        .get_used_capacity(Some(ResourceType::Energy))
+                        > 0
+                    {
+                        let distance = creep.pos().get_range_to(container.pos());
+                        if distance < min_distance {
+                            min_distance = distance;
+                            closest_container = Some(container.id());
+                        }
+                    }
+                }
+            }
+
+            // If we found a container with energy, harvest from it
+            if let Some(container_id) = closest_container {
+                return Box::new(WithdrawState::new(container_id));
             } else {
-                warn!("No sources found for creep {}", creep.name());
-                return Box::new(IdleState {});
+                // Attempt to find some sources to harvest
+                if let Some(source) = find_nearest_object(&creep.pos(), &room, find::SOURCES_ACTIVE) {
+                    return Box::new(HarvestState::new(source));
+                } else {
+                    warn!("No sources found for creep {}", creep.name());
+                    return Box::new(IdleState {});
+                }
             }
         }
 
@@ -73,20 +97,6 @@ impl StateController for SCGeneralist {
             }
         }
 
-        // Check if we have towers that need energy
-        for structure in room.find(find::STRUCTURES, None).iter() {
-            if let StructureObject::StructureTower(tower) = structure {
-                if tower.store().get_free_capacity(Some(ResourceType::Energy)) > 0
-                {
-                    return Box::new(
-                        FeedStructureState::<screeps::objects::StructureTower>::new(
-                            tower.id(),
-                        ),
-                    );
-                }
-            }
-        }
-
         let build_count = self.count_state_instances(&room, &StateName::Build);
         let upgrade_count = self.count_state_instances(&room, &StateName::Upgrade);
         // limit build creeps to 2, only build if we have an upgrade creep
@@ -96,12 +106,10 @@ impl StateController for SCGeneralist {
             }
         }
 
-        // Check if we have energy, if we do, upgrade controller
-        if energy > 0 {
-            for structure in room.find(find::STRUCTURES, None).iter() {
-                if let StructureObject::StructureController(controller) = structure {
-                    return Box::new(UpgradeState::new(controller.id()));
-                }
+        // upgrade controller
+        for structure in room.find(find::STRUCTURES, None).iter() {
+            if let StructureObject::StructureController(controller) = structure {
+                return Box::new(UpgradeState::new(controller.id()));
             }
         }
 

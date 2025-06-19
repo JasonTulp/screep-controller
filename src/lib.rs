@@ -2,21 +2,18 @@ extern crate core;
 
 use js_sys::{JsString, Object, Reflect};
 use log::*;
-use screeps::{constants::Part, game, objects::Room, prelude::*};
-use std::{
-    cell::RefCell,
-    collections::{HashMap, HashSet},
-};
+use screeps::game;
+use std::{cell::RefCell, collections::HashSet};
 use wasm_bindgen::prelude::*;
 
 mod logging;
 mod screep_states;
 mod state_controllers;
+mod tower_manager;
 mod utils;
 
 use crate::state_controllers::SCManager;
-use screep_states::*;
-use state_controllers::SCGeneralist;
+use tower_manager::TowerManager;
 
 // this is one way to persist data between ticks within Rust's memory, as opposed to
 // keeping state in memory on game objects - but will be lost on global resets!
@@ -43,6 +40,9 @@ pub fn game_loop() {
         // run the tick for all state controllers
         state_manager.run();
     });
+
+    // Run all towers to repair some shit
+    TowerManager::new().run_all_towers();
 
     // memory cleanup; memory gets created for all creeps upon spawning, and any time move_to
     // is used; this should be removed if you're using RawMemory/serde for persistence

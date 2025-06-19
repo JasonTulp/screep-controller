@@ -1,8 +1,5 @@
 // Helpful utility functions for the project.
-use screeps::{
-    find, ConstructionSite, Creep, FindConstant, HasId, HasPosition, ObjectId, ResourceType, Room,
-    StructureObject,
-};
+use screeps::{find, ConstructionSite, Creep, FindConstant, HasId, HasPosition, ObjectId, Position, ResourceType, Room, StructureObject};
 
 pub mod prelude {
     pub use {
@@ -13,7 +10,8 @@ pub mod prelude {
 
 // Gets the nearest object based on distance from the creep
 pub fn find_nearest_object<R>(
-    creep: &Creep,
+    // reference position
+    position: &Position,
     room: &Room,
     find_const: impl FindConstant<Item = R>,
 ) -> Option<ObjectId<R>>
@@ -27,7 +25,7 @@ where
     // Find the nearest object
     let nearest = objects
         .iter()
-        .min_by_key(|obj| creep.pos().get_range_to(obj.pos()))?;
+        .min_by_key(|obj| position.pos().get_range_to(obj.pos()))?;
 
     Some(nearest.clone().id())
 }
@@ -78,7 +76,7 @@ pub fn get_total_upgrade_energy(room: &Room) -> u32 {
     }
     energy_available
 }
-// 
+//
 // // Gets count of creeps in a room with a specific state
 // pub fn get_count_of_creeps_with_state(room: &Room, state_name: &str) -> usize {
 //     room.find(find::CREEPS, None)

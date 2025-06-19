@@ -2,12 +2,12 @@ pub use build::BuildState;
 pub use feed_structure::FeedStructureState;
 pub use harvest::HarvestState;
 pub use idle::IdleState;
-pub use withdraw::WithdrawState;
-use log::{debug, info};
+use log::debug;
 use screeps::objects::Creep;
 use screeps::SharedCreepProperties;
 use serde::{Deserialize, Serialize};
 pub use upgrade::UpgradeState;
+pub use withdraw::WithdrawState;
 
 mod build;
 mod feed_structure;
@@ -56,11 +56,7 @@ pub trait ScreepState {
     /// Log the current state of the creep for debugging purposes
     fn log_state(&self, creep: &Creep) {
         let state_str: &'static str = self.get_state_name().into();
-        debug!(
-            "-> Creep {} is in {} state.",
-            creep.name(),
-            state_str
-        );
+        debug!("-> Creep {} is in {} state.", creep.name(), state_str);
     }
 
     /// Get the name of the state for logging purposes

@@ -1,26 +1,26 @@
 mod generalist;
+mod hauler;
 mod manager;
 mod miner;
-mod hauler;
 
-use std::cmp::PartialEq;
 use log::warn;
+use std::cmp::PartialEq;
 // Contains core State Controller logic for managing Screep states
 use crate::screep_states::*;
-use screeps::{find, objects::Creep, prelude::*, Part, Room, SpawnOptions};
+use screeps::{find, objects::Creep, Part, Room};
 use serde::{Deserialize, Serialize};
 
-pub use generalist::SCGeneralist;
-pub use manager::SCManager;
 use crate::state_controllers::hauler::SCHauler;
 use crate::state_controllers::miner::SCMiner;
+pub use generalist::SCGeneralist;
+pub use manager::SCManager;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum Specialisation {
     Unknown,
     Generalist,
     Miner,
-    Hauler
+    Hauler,
 }
 
 impl From<Specialisation> for &'static str {
@@ -41,9 +41,12 @@ impl From<Specialisation> for Box<dyn StateController> {
             Specialisation::Miner => Box::new(SCMiner::new()),
             Specialisation::Hauler => Box::new(SCHauler::new()),
             _ => {
-                warn!("Unknown or unsupported specialisation: {:?} defaulting to Generalist", specialisation);
+                warn!(
+                    "!!!! Unknown or unsupported specialisation: {:?} defaulting to Generalist",
+                    specialisation
+                );
                 Box::new(SCGeneralist::new())
-            }, // Default to Generalist for unknown or unsupported specialisations
+            } // Default to Generalist for unknown or unsupported specialisations
         }
     }
 }
@@ -54,7 +57,6 @@ pub trait StateController {
 
     /// Run a tick for the given creep and update its state
     fn run_tick(&mut self, creep: &Creep) {
-        let name = creep.name();
         match self.current_state().tick(creep) {
             TickResult::Continue => {
                 // Continue running the current state

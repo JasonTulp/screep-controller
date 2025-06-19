@@ -1,10 +1,11 @@
-use std::collections::HashMap;
-use log::warn;
-use screeps::{find, game, objects::Creep, Room, SharedCreepProperties, SpawnOptions, StructureObject};
+use super::{Specialisation, StateController};
 use crate::info;
-use super::{StateController, SCGeneralist, Specialisation};
 use crate::screep_states::CreepMemory;
-use crate::state_controllers::miner::SCMiner;
+use log::warn;
+use screeps::{
+    find, game, objects::Creep, Room, SharedCreepProperties, SpawnOptions, StructureObject,
+};
+use std::collections::HashMap;
 
 /// The SCManager is responsible for managing the state controllers of all creeps in the room.
 pub struct SCManager {
@@ -27,7 +28,7 @@ impl SCManager {
     pub fn run_tick_for_all(&mut self) {
         for creep in game::creeps().values() {
             let name = creep.name();
-            let mut maybe_controller = self.state_controllers.get_mut(&name);
+            let maybe_controller = self.state_controllers.get_mut(&name);
             if let Some(controller) = maybe_controller {
                 controller.run_tick(&creep);
             } else {
@@ -41,9 +42,10 @@ impl SCManager {
         let mut additional = 0;
         let creep_count = game::creeps().values().count();
         // info!("creep count: {}", creep_count);
-        if creep_count < 5 {
+        if creep_count < 6 {
             for spawn in game::spawns().values() {
-                info!("running spawn {}", spawn.name());
+                info!("\n\n\n");
+                info!("====> running spawn {}", spawn.name());
                 info!(
                     "Energy available: {}",
                     spawn.room().unwrap().energy_available()
@@ -51,6 +53,7 @@ impl SCManager {
 
                 // Determine specialisation, and get body parts and memory
                 let specialisation = self.get_next_specialty(&spawn.room().unwrap());
+                info!("Next specialisation: {:?}", specialisation);
                 let memory = CreepMemory::new(specialisation.clone());
                 let controller: Box<dyn StateController> = specialisation.clone().into();
                 let body = controller.get_best_worker_body(&spawn.room().unwrap());
@@ -60,13 +63,16 @@ impl SCManager {
                     // create a unique name, spawn.
                     let name_base = game::time();
                     let name = format!("{:?}-{}-{}", specialisation, name_base, additional);
-                    let options = SpawnOptions::new()
-                        .memory(memory.into());
+                    let options = SpawnOptions::new().memory(memory.into());
                     match spawn.spawn_creep_with_options(&body, &name, &options) {
-                        Ok(()) => additional += 1,
+                        Ok(()) => {
+                            info!("====> spawn successful\n\n\n");
+                            additional += 1
+                        },
                         Err(e) => warn!("couldn't spawn: {:?}", e),
                     }
                 }
+
             }
         }
     }
@@ -79,8 +85,10 @@ impl SCManager {
         let memory: CreepMemory = memory.into();
         // Add the new controller to the map
         // Can use into here due to impl on Specialisation
-        self.state_controllers
-            .insert(creep.name().to_string(), memory.specialisation().clone().into());
+        self.state_controllers.insert(
+            creep.name().to_string(),
+            memory.specialisation().clone().into(),
+        );
     }
 
     /// Get the next specialty for a creep based on the current room state
@@ -108,11 +116,14 @@ impl SCManager {
                 _ => {}
             }
         });
-        info!("Current counts - Generalist: {}, Miner: {}, Hauler: {}",
-            generalist_count, miner_count, hauler_count);
+        info!(
+            "Current counts - Generalist: {}, Miner: {}, Hauler: {}",
+            generalist_count, miner_count, hauler_count
+        );
 
         let energy_count = room.find(find::SOURCES_ACTIVE, None).len();
-        let container_count = room.find(find::STRUCTURES, None)
+        let container_count = room
+            .find(find::STRUCTURES, None)
             .iter()
             .filter(|s| matches!(s, StructureObject::StructureContainer(_)))
             .count();
@@ -123,7 +134,7 @@ impl SCManager {
         if total < 2 {
             return Specialisation::Generalist;
         }
-        if generalist_count >= 2 {
+        if generalist_count >= 1 {
             // If we have enough generalists, we can spawn a miner or hauler
             // Spawn one miner per energy in the room, and alternate miners to haulers
             if miner_count < max_miner_count && miner_count <= hauler_count {
@@ -134,4 +145,4 @@ impl SCManager {
         }
         Specialisation::Generalist
     }
-} 
+}

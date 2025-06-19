@@ -1,9 +1,9 @@
-use crate::screep_states::*;
-use crate::{info, utils};
-use log::warn;
-use screeps::{constants::ResourceType, enums::StructureObject, find, objects::Creep, prelude::*, Part, Room};
-use crate::utils::find_object_at_index;
 use super::{Specialisation, StateController};
+use crate::screep_states::*;
+use crate::utils;
+use crate::utils::find_object_at_index;
+use log::warn;
+use screeps::{constants::ResourceType, enums::StructureObject, find, objects::Creep, prelude::*, Part, Room, StructureContainer};
 
 /// Miner State Controller for mining energy and dumping it into nearby storage
 pub struct SCMiner {
@@ -16,7 +16,7 @@ impl SCMiner {
     pub fn new() -> Self {
         SCMiner {
             current_state: Box::new(IdleState {}),
-            source_index: None
+            source_index: None,
         }
     }
 
@@ -57,26 +57,36 @@ impl SCMiner {
     // Find the resource index by getting the source with the least number of miners
     fn find_source_index(&mut self, room: &Room, creep: &Creep) -> Option<u8> {
         // get room sources
-        let sources: Vec<u8> = room.find(find::SOURCES_ACTIVE, None)
-            .into_iter().enumerate().map(|( i, _)| i as u8).collect();
+        let sources: Vec<u8> = room
+            .find(find::SOURCES_ACTIVE, None)
+            .into_iter()
+            .enumerate()
+            .map(|(i, _)| i as u8)
+            .collect();
 
         // Count miners on each source
-        let mut source_counts: Vec<(u8, usize)> = sources.iter().map(|&source_index| (source_index, 0)).collect();
-        
+        let mut source_counts: Vec<(u8, usize)> = sources
+            .iter()
+            .map(|&source_index| (source_index, 0))
+            .collect();
+
         // Count existing miners on each source
         room.find(find::CREEPS, None).iter().for_each(|creep| {
             let memory = CreepMemory::from(creep.memory());
             if memory.specialisation() == &Specialisation::Miner {
                 if let Some(data) = memory.additional_data() {
                     if let Ok(source_index) = data.parse::<u8>() {
-                        if let Some((_, count)) = source_counts.iter_mut().find(|(idx, _)| *idx == source_index) {
+                        if let Some((_, count)) = source_counts
+                            .iter_mut()
+                            .find(|(idx, _)| *idx == source_index)
+                        {
                             *count += 1;
                         }
                     }
                 }
             }
         });
-        
+
         // Find the source with the least number of miners
         let new_index = source_counts
             .iter()
@@ -116,35 +126,43 @@ impl StateController for SCMiner {
             return Box::new(IdleState {});
         };
 
-        if energy == 0 {
-            // Find the resource
-            if let Some(source) = find_object_at_index(&room, source_index, find::SOURCES_ACTIVE) {
-                return Box::new(HarvestState::new(source));
-            } else {
-                warn!("No sources found for creep {}", creep.name());
-                return Box::new(IdleState {});
-            }
-        }
 
-        // Check if we have energy, if we do, upgrade controller
-        if energy > 0 {
-            // Attempt to find a storage structure to feed energy to
-            for structure in room.find(find::STRUCTURES, None).iter() {
-                if let StructureObject::StructureContainer(container) = structure {
-                    if container.store().get_free_capacity(Some(ResourceType::Energy)) > 0 {
+        if let Some(source_id) = find_object_at_index(&room, source_index, find::SOURCES_ACTIVE) {
+            if energy == 0 {
+                // Go mine boy!
+                return Box::new(HarvestState::new(source_id));
+            } else {
+                // find the closest container to the source
+                let mut closest_container: Option<StructureContainer> = None;
+                let mut closest_distance = u32::MAX;
+                
+                // Resolve the source to get its position
+                if let Some(source) = source_id.resolve() {
+                    for structure in room.find(find::STRUCTURES, None).iter() {
+                        if let StructureObject::StructureContainer(container) = structure {
+                            let distance = source.pos().get_range_to(container.pos());
+                            if distance < closest_distance {
+                                closest_distance = distance;
+                                closest_container = Some(container.clone());
+                            }
+                        }
+                    }
+                }
+
+                if let Some(container) = closest_container {
+                    if container.store().get_free_capacity(Some(ResourceType::Energy)) > 0
+                    {
                         return Box::new(
-                            FeedStructureState::<screeps::objects::StructureContainer>::new(container.id()),
+                            FeedStructureState::<StructureContainer>::new(
+                                container.id(),
+                            ),
                         );
                     }
                 }
             }
-
-            // If no storage found, try to upgrade the controller instead
-            for structure in room.find(find::STRUCTURES, None).iter() {
-                if let StructureObject::StructureController(controller) = structure {
-                    return Box::new(UpgradeState::new(controller.id()));
-                }
-            }
+        } else {
+            warn!("Creep source not found or empty {}", creep.name());
+            return Box::new(IdleState {});
         }
 
         // return idle state if no other states are compatible

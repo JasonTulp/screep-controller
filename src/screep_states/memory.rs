@@ -34,7 +34,7 @@ impl CreepMemory {
     pub fn additional_data(&self) -> Option<String> {
         self.additional_data.clone()
     }
-    
+
     pub fn set_current_state(&mut self, state: StateName) {
         self.current_state = state;
     }
@@ -55,5 +55,3 @@ impl From<CreepMemory> for JsValue {
         to_value(&memory).expect("Failed to convert CreepMemory to JsValue")
     }
 }
-
-

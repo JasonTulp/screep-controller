@@ -1,13 +1,6 @@
-use crate::screep_states::CreepMemory;
-
 use super::{ScreepState, StateName, TickResult};
-use log::{info, warn};
-use screeps::{
-    constants::ResourceType,
-    local::ObjectId,
-    objects::{Creep, Source},
-    prelude::*,
-};
+use log::warn;
+use screeps::{constants::ResourceType, local::ObjectId, objects::Creep, prelude::*};
 use wasm_bindgen::JsCast;
 
 /// Harvest energy from the source
@@ -27,7 +20,7 @@ impl<T: Withdrawable + MaybeHasId + JsCast> ScreepState for WithdrawState<T> {
         self.update_state_memory(creep);
     }
 
-    fn get_state_name(&self) -> StateName{
+    fn get_state_name(&self) -> StateName {
         StateName::Withdraw
     }
 
@@ -41,7 +34,10 @@ impl<T: Withdrawable + MaybeHasId + JsCast> ScreepState for WithdrawState<T> {
         };
 
         if creep.pos().is_near_to(structure.pos()) {
-            if creep.withdraw(&structure, ResourceType::Energy, None).is_err() {
+            if creep
+                .withdraw(&structure, ResourceType::Energy, None)
+                .is_err()
+            {
                 warn!("couldn't harvest for some unknown reason");
                 return TickResult::Exit;
             };
