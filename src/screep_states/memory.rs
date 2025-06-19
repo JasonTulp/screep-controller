@@ -1,15 +1,15 @@
-use serde_wasm_bindgen::{from_value, to_value};
-use wasm_bindgen::JsValue;
-use serde::{Deserialize, Serialize};
 use crate::screep_states::StateName;
 use crate::state_controllers::Specialisation;
+use serde::{Deserialize, Serialize};
+use serde_wasm_bindgen::{from_value, to_value};
+use wasm_bindgen::JsValue;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct CreepMemory {
     // What state is the creep currently in?
-    current_state: StateName,
+    pub current_state: StateName,
     // What specialisation is this creep?
-    specialisation: Specialisation,
+    pub specialisation: Specialisation,
 }
 
 impl CreepMemory {
@@ -31,9 +31,7 @@ impl CreepMemory {
 
 impl From<JsValue> for CreepMemory {
     fn from(js_value: JsValue) -> Self {
-        from_value(js_value).unwrap_or_else(|_| {
-            CreepMemory::new(Specialisation::Unknown)    
-        })
+        from_value(js_value).unwrap_or_else(|_| CreepMemory::new(Specialisation::Unknown))
     }
 }
 
@@ -42,3 +40,5 @@ impl From<CreepMemory> for JsValue {
         to_value(&memory).expect("Failed to convert CreepMemory to JsValue")
     }
 }
+
+

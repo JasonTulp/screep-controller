@@ -16,6 +16,7 @@ impl<T: Transferable + MaybeHasId + JsCast> FeedStructureState<T> {
 impl<T: Transferable + MaybeHasId + JsCast> ScreepState for FeedStructureState<T> {
     fn on_start(&self, creep: &Creep) {
         let _ = creep.say("💪", false);
+        self.update_memory(creep);
     }
 
     fn get_state_name(&self) -> &'static str {
