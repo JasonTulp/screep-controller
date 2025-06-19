@@ -6,7 +6,7 @@ pub use upgrade::UpgradeState;
 use log::info;
 use screeps::objects::Creep;
 use screeps::SharedCreepProperties;
-use crate::state_machine::StateController;
+use crate::state_controllers::StateController;
 
 mod build;
 mod feed_structure;

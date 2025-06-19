@@ -7,26 +7,26 @@ use std::{
 use js_sys::{JsString, Object, Reflect};
 use log::*;
 use screeps::{
-    constants::{Part, ResourceType},
-    enums::StructureObject,
-    find, game,
+    constants::Part,
+    game,
     objects::Room,
     prelude::*,
 };
 use wasm_bindgen::prelude::*;
 
 mod logging;
-mod state_machine;
 mod screep_states;
 mod state_controllers;
+mod utils;
 
-pub use screep_states::*;
+use state_controllers::StateController;
+use screep_states::*;
 
 // this is one way to persist data between ticks within Rust's memory, as opposed to
 // keeping state in memory on game objects - but will be lost on global resets!
 thread_local! {
     static CREEP_STATES: RefCell<HashMap<String, Box<dyn ScreepState>>> = RefCell::new(HashMap::new());
-    static STATE_CONTROLLER: RefCell<state_machine::StateController> = RefCell::new(state_machine::StateController::new());
+    static STATE_CONTROLLER: RefCell<StateController> = RefCell::new(StateController::new());
 }
 
 static INIT_LOGGING: std::sync::Once = std::sync::Once::new();
@@ -117,7 +117,7 @@ pub fn game_loop() {
 /// This function returns the best worker body based on the current game state.
 fn get_best_worker_body(room: &Room) -> Vec<Part> {
     let mut base_body = vec![Part::Move, Part::Move, Part::Carry, Part::Work];
-    let energy_available: u32 = get_total_upgrade_energy(room);
+    let energy_available: u32 = utils::get_total_upgrade_energy(room);
     info!("Total available: {}", energy_available);
     let mut cost = base_body.iter().map(|p| p.cost()).sum::<u32>();
     while cost < energy_available {
@@ -140,16 +140,3 @@ fn get_best_worker_body(room: &Room) -> Vec<Part> {
     return base_body;
 }
 
-/// The max capacity of energy available for upgrades in a room.
-/// This is the sum of the spawns and any extensions in the room.
-fn get_total_upgrade_energy(room: &Room) -> u32 {
-    let mut energy_available: u32 = 0;
-    for structure in room.find(find::STRUCTURES, None).iter() {
-        if let StructureObject::StructureSpawn(spawn) = structure {
-            energy_available += spawn.store().get_capacity(Some(ResourceType::Energy));
-        } else if let StructureObject::StructureExtension(extension) = structure {
-            energy_available += extension.store().get_capacity(Some(ResourceType::Energy));
-        }
-    }
-    energy_available
-}

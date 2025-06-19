@@ -1,5 +1,5 @@
 use super::{ScreepState, TickResult};
-use crate::state_machine::StateController;
+use crate::state_controllers::StateController;
 use screeps::objects::Creep;
 
 /// Idle state can be used as a fallback when no other state is applicable

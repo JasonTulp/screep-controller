@@ -1,5 +1,5 @@
 use super::{ScreepState, TickResult};
-use crate::state_machine::StateController;
+use crate::state_controllers::StateController;
 use screeps::{
     constants::ResourceType,
     local::ObjectId,
