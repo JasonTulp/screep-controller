@@ -26,8 +26,8 @@ impl ScreepState for HarvestState {
         self.update_memory(creep);
     }
 
-    fn get_state_name(&self) -> &'static str {
-        StateName::Harvest.into()
+    fn get_state_name(&self) -> StateName{
+        StateName::Harvest
     }
 
     fn tick(&self, creep: &Creep) -> TickResult {

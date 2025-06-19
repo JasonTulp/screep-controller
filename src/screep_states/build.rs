@@ -24,8 +24,8 @@ impl ScreepState for BuildState {
         self.update_memory(creep);
     }
 
-    fn get_state_name(&self) -> &'static str {
-        StateName::Build.into()
+    fn get_state_name(&self) -> StateName {
+        StateName::Build
     }
 
     fn tick(&self, creep: &Creep) -> TickResult {

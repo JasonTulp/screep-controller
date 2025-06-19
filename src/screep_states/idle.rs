@@ -11,8 +11,8 @@ impl ScreepState for IdleState {
         self.update_memory(creep);
     }
 
-    fn get_state_name(&self) -> &'static str {
-        StateName::Idle.into()
+    fn get_state_name(&self) -> StateName {
+        StateName::Idle
     }
 
     fn tick(&self, _creep: &Creep) -> TickResult {

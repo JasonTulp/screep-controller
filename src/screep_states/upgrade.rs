@@ -24,8 +24,8 @@ impl ScreepState for UpgradeState {
         self.update_memory(creep);
     }
 
-    fn get_state_name(&self) -> &'static str {
-        StateName::Upgrade.into()
+    fn get_state_name(&self) -> StateName {
+        StateName::Upgrade
     }
 
     fn tick(&self, creep: &Creep) -> TickResult {

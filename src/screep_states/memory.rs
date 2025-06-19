@@ -7,9 +7,9 @@ use wasm_bindgen::JsValue;
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct CreepMemory {
     // What state is the creep currently in?
-    pub current_state: StateName,
+    current_state: StateName,
     // What specialisation is this creep?
-    pub specialisation: Specialisation,
+    specialisation: Specialisation,
 }
 
 impl CreepMemory {
@@ -26,6 +26,10 @@ impl CreepMemory {
 
     pub fn specialisation(&self) -> &Specialisation {
         &self.specialisation
+    }
+    
+    pub fn set_current_state(&mut self, state: StateName) {
+        self.current_state = state;
     }
 }
 

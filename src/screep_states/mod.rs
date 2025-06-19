@@ -16,7 +16,7 @@ mod memory;
 mod upgrade;
 pub use memory::CreepMemory;
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub enum StateName {
     Harvest,
     Upgrade,
@@ -37,27 +37,12 @@ impl From<StateName> for &'static str {
     }
 }
 
-impl From<&'static str> for StateName {
-    fn from(state: &'static str) -> Self {
-        match state {
-            "Harvest" => StateName::Harvest,
-            "Upgrade" => StateName::Upgrade,
-            "Build" => StateName::Build,
-            "FeedStructure" => StateName::FeedStructure,
-            _ => StateName::Idle,
-        }
-    }
-}
-
 // What state is this screep in
 pub trait ScreepState {
     fn update_memory(&self, creep: &Creep) {
-        let memory: CreepMemory = creep.memory().into();
-        let updated = CreepMemory {
-            current_state: self.get_state_name().into(),
-            specialisation: memory.specialisation,
-        };
-        creep.set_memory(&updated.into());
+        let mut memory: CreepMemory = creep.memory().into();
+        memory.set_current_state(self.get_state_name());
+        creep.set_memory(&memory.into());
     }
 
     /// Called when the state is started, can be used to initialize counters or send messages
@@ -65,15 +50,16 @@ pub trait ScreepState {
 
     /// Log the current state of the creep for debugging purposes
     fn log_state(&self, creep: &Creep) {
+        let state_str: &'static str = self.get_state_name().into();
         info!(
             "-> Creep {} is in {} state.",
             creep.name(),
-            self.get_state_name()
+            state_str
         );
     }
 
     /// Get the name of the state for logging purposes
-    fn get_state_name(&self) -> &'static str;
+    fn get_state_name(&self) -> StateName;
 
     /// Run a tick for the given creep and return the result
     fn tick(&self, creep: &Creep) -> TickResult;

@@ -84,14 +84,14 @@ impl StateController for SCGeneralist {
             }
         }
 
+        let build_count = self.count_state_instances(&room, &StateName::Build);
+        let upgrade_count = self.count_state_instances(&room, &StateName::Upgrade);
         // limit build creeps to 2, only build if we have an upgrade creep
-        // TODO
-        // if sc_manager.get_specialty_count(StateName::Build.into()) < 2 &&
-        //     sc_manager.get_specialty_count(StateName::Upgrade.into()) > 0 {
-        //     if let Some(site) = find_nearest_construction_site(creep, &room) {
-        //         return Box::new(BuildState::new(site.clone()));
-        //     }
-        // }
+        if build_count < 2 && upgrade_count > 0 {
+            if let Some(site) = find_nearest_construction_site(creep, &room) {
+                return Box::new(BuildState::new(site.clone()));
+            }
+        }
 
         // Check if we have energy, if we do, upgrade controller
         if energy > 0 {

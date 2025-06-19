@@ -1,15 +1,16 @@
 mod generalist;
 mod manager;
 
+use std::cmp::PartialEq;
 // Contains core State Controller logic for managing Screep states
 use crate::screep_states::*;
-use screeps::{objects::Creep, prelude::*, Part, Room, SpawnOptions};
+use screeps::{find, objects::Creep, prelude::*, Part, Room, SpawnOptions};
 use serde::{Deserialize, Serialize};
 
 pub use generalist::SCGeneralist;
 pub use manager::SCManager;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum Specialisation {
     Unknown,
     Generalist,
@@ -72,4 +73,15 @@ pub trait StateController {
     fn get_best_worker_body(&self, _room: &Room) -> Vec<Part>;
 
     fn get_memory(&self) -> CreepMemory;
+    
+    // Count instances of a certain state in the room
+    fn count_state_instances(&self, room: &Room, state: &StateName) -> u8 {
+        let mut count = 0;
+        room.find(find::CREEPS, None).iter().for_each(|creep| {
+            if CreepMemory::from(creep.memory()).current_state() == state {
+                count += 1;
+            }
+        });
+        count
+    }
 }

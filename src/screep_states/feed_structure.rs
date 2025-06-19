@@ -19,8 +19,8 @@ impl<T: Transferable + MaybeHasId + JsCast> ScreepState for FeedStructureState<T
         self.update_memory(creep);
     }
 
-    fn get_state_name(&self) -> &'static str {
-        StateName::FeedStructure.into()
+    fn get_state_name(&self) -> StateName {
+        StateName::FeedStructure
     }
 
     fn tick(&self, creep: &Creep) -> TickResult {
