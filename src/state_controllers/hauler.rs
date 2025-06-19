@@ -153,7 +153,6 @@ impl StateController for SCHauler {
 
     // TODO What is the best ratio for carry to move?
     fn get_best_worker_body(&self, room: &Room) -> Vec<Part> {
-        info!("Getting best worker body for hauler in room {}", room.name());
         let mut base_body = vec![];
         let target_body = vec![
             Part::Move,
@@ -188,12 +187,6 @@ impl StateController for SCHauler {
             base_body.push(Part::Move);
             cost += Part::Move.cost();
         }
-
-        info!(
-            "Best worker body for hauler in room {}: {:?}",
-            room.name(),
-            base_body
-        );
 
         base_body
     }

@@ -2,6 +2,8 @@ mod generalist;
 mod hauler;
 mod manager;
 mod miner;
+mod builder;
+mod upgrader;
 
 use log::warn;
 use std::cmp::PartialEq;
@@ -21,6 +23,8 @@ pub enum Specialisation {
     Generalist,
     Miner,
     Hauler,
+    Builder,
+    Upgrader,
 }
 
 impl From<Specialisation> for &'static str {
@@ -30,6 +34,8 @@ impl From<Specialisation> for &'static str {
             Specialisation::Generalist => "Generalist",
             Specialisation::Miner => "Miner",
             Specialisation::Hauler => "Hauler",
+            Specialisation::Builder => "Builder",
+            Specialisation::Upgrader => "Upgrader",
         }
     }
 }
@@ -40,6 +46,8 @@ impl From<Specialisation> for Box<dyn StateController> {
             Specialisation::Generalist => Box::new(SCGeneralist::new()),
             Specialisation::Miner => Box::new(SCMiner::new()),
             Specialisation::Hauler => Box::new(SCHauler::new()),
+            Specialisation::Builder => Box::new(builder::SCBuilder::new()),
+            Specialisation::Upgrader => Box::new(upgrader::SCUpgrader::new()),
             _ => {
                 warn!(
                     "!!!! Unknown or unsupported specialisation: {:?} defaulting to Generalist",

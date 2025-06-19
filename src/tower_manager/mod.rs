@@ -85,9 +85,9 @@ impl TowerManager {
             // {
             //     Some(s.clone())
             // }
-            StructureObject::StructureWall(wall) if wall.hits() < wall.hits_max() => {
-                Some(s.clone())
-            }
+            // StructureObject::StructureWall(wall) if wall.hits() < wall.hits_max() => {
+            //     Some(s.clone())
+            // }
             // StructureObject::StructureExtension(extension)
             //     if extension.hits() < extension.hits_max() =>
             // {

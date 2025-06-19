@@ -171,7 +171,7 @@ impl StateController for SCMiner {
 
     /// Get the best worker body for this state controller
     fn get_best_worker_body(&self, room: &Room) -> Vec<Part> {
-        let mut base_body = vec![Part::Move, Part::Carry, Part::Work];
+        let mut base_body: Vec<Part> = vec![];
         let target_body = vec![
             Part::Move,
             Part::Carry,
@@ -182,6 +182,8 @@ impl StateController for SCMiner {
             Part::Work,
             Part::Move,
             Part::Work,
+            Part::Work,
+            Part::Move,
             Part::Work,
             Part::Move,
         ];

@@ -106,6 +106,8 @@ impl SCManager {
         let mut generalist_count = 0;
         let mut miner_count = 0;
         let mut hauler_count = 0;
+        let mut builder_count = 0;
+        let mut upgrader_count = 0;
 
         room.find(find::CREEPS, None).iter().for_each(|creep| {
             total += 1;
@@ -113,13 +115,15 @@ impl SCManager {
                 Specialisation::Generalist => generalist_count += 1,
                 Specialisation::Miner => miner_count += 1,
                 Specialisation::Hauler => hauler_count += 1,
+                Specialisation::Builder => builder_count += 1,
+                Specialisation::Upgrader => upgrader_count += 1,
                 _ => {}
             }
         });
-        info!(
-            "Current counts - Generalist: {}, Miner: {}, Hauler: {}",
-            generalist_count, miner_count, hauler_count
-        );
+        // If there are less than 3 creeps, we need a generalist to spawn
+        if total < 2 {
+            return Specialisation::Generalist;
+        }
 
         let energy_count = room.find(find::SOURCES_ACTIVE, None).len();
         let container_count = room
@@ -129,18 +133,25 @@ impl SCManager {
             .count();
         // set to max energy or container count
         let max_miner_count = energy_count.max(container_count);
-
-        // If there are less than 3 creeps, we need a generalist to spawn
-        if total < 2 {
+        if max_miner_count == 0 {
+            // If there are no sources or containers, we can't spawn miners or haulers yet
             return Specialisation::Generalist;
         }
-        if generalist_count >= 1 {
+
+        // Trigger the specialised roles once we have reached a stage where the room can support them
+        if generalist_count >= 1 || miner_count + hauler_count >= 2 {
             // If we have enough generalists, we can spawn a miner or hauler
             // Spawn one miner per energy in the room, and alternate miners to haulers
             if miner_count < max_miner_count && miner_count <= hauler_count {
                 return Specialisation::Miner;
             } else if hauler_count < max_miner_count {
                 return Specialisation::Hauler;
+            } else if builder_count < 1 {
+                // If we have enough miners and haulers, we can spawn a builder
+                return Specialisation::Builder;
+            } else if upgrader_count < 1 {
+                // If we have enough builders, we can spawn an upgrader
+                return Specialisation::Upgrader;
             }
         }
         Specialisation::Generalist

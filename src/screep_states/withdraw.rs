@@ -38,7 +38,7 @@ impl<T: Withdrawable + MaybeHasId + JsCast> ScreepState for WithdrawState<T> {
                 .withdraw(&structure, ResourceType::Energy, None)
                 .is_err()
             {
-                warn!("couldn't harvest for some unknown reason");
+                warn!("couldn't withdraw for some unknown reason");
                 return TickResult::Exit;
             };
         } else {
