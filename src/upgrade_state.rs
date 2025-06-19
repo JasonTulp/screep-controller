@@ -1,14 +1,13 @@
-use crate::{warn};
 use crate::state_machine::{ScreepState, StateController, TickResult};
+use crate::warn;
+use screeps::action_error_codes::UpgradeControllerErrorCode;
 use screeps::{
-    constants::{ResourceType},
+    constants::ResourceType,
     local::ObjectId,
     objects::{Creep, StructureController},
-    HasPosition,
-    prelude::*,
 };
-use screeps::action_error_codes::{UpgradeControllerErrorCode};
 
+// UpgradeState is used to upgrade the room controller
 pub struct UpgradeState {
     controller: ObjectId<StructureController>,
 }
@@ -23,6 +22,10 @@ impl ScreepState for UpgradeState {
     fn on_start(&self, creep: &Creep, state_controller: &mut StateController) {
         state_controller.upgrade_creeps += 1;
         let _ = creep.say("⬆️", false);
+    }
+
+    fn get_state_name(&self) -> &'static str {
+        "UpgradeState"
     }
 
     fn tick(&mut self, creep: &Creep) -> TickResult {

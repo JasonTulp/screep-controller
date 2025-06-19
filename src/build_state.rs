@@ -1,13 +1,12 @@
-use crate::{warn};
 use crate::state_machine::{ScreepState, StateController, TickResult};
+use crate::warn;
+use screeps::action_error_codes::BuildErrorCode;
 use screeps::{
-    constants::{ResourceType},
-    local::ObjectId,
-    objects::{Creep, ConstructionSite},
-    HasPosition,
+    constants::ResourceType,
+    objects::{ConstructionSite, Creep},
     prelude::*,
+    HasPosition,
 };
-use screeps::action_error_codes::{BuildErrorCode};
 
 pub struct BuildState {
     construction_site: ConstructionSite,
@@ -24,6 +23,11 @@ impl ScreepState for BuildState {
         state_controller.build_creeps += 1;
         let _ = creep.say("⚒️", false);
     }
+
+    fn get_state_name(&self) -> &'static str {
+        "BuildState"
+    }
+
     fn tick(&mut self, creep: &Creep) -> TickResult {
         if creep.store().get_used_capacity(Some(ResourceType::Energy)) == 0 {
             return TickResult::Exit;

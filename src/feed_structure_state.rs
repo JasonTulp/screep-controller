@@ -1,14 +1,7 @@
-use crate::{warn};
 use crate::state_machine::{ScreepState, StateController, TickResult};
-use screeps::{
-    constants::{ResourceType},
-    local::ObjectId,
-    objects::{Creep, StructureSpawn},
-    HasPosition,
-    prelude::*,
-};
+use screeps::action_error_codes::TransferErrorCode;
+use screeps::{constants::ResourceType, local::ObjectId, objects::Creep, prelude::*};
 use wasm_bindgen::JsCast;
-use screeps::action_error_codes::{TransferErrorCode};
 
 pub struct FeedStructureState<T: Transferable + MaybeHasId + JsCast> {
     structure: ObjectId<T>,
@@ -21,8 +14,12 @@ impl<T: Transferable + MaybeHasId + JsCast> FeedStructureState<T> {
 }
 
 impl<T: Transferable + MaybeHasId + JsCast> ScreepState for FeedStructureState<T> {
-    fn on_start(&self, creep: &Creep, _state_controller: &mut StateController) {
+    fn on_start(&self, creep: &Creep, _sc: &mut StateController) {
         let _ = creep.say("💪", false);
+    }
+
+    fn get_state_name(&self) -> &'static str {
+        "FeedStructureState"
     }
 
     fn tick(&mut self, creep: &Creep) -> TickResult {
@@ -44,14 +41,9 @@ impl<T: Transferable + MaybeHasId + JsCast> ScreepState for FeedStructureState<T
                         let _ = creep.move_to(&structure);
                         TickResult::Continue
                     }
-                    _ => {
-                        TickResult::Exit
-                    }
+                    _ => TickResult::Exit,
                 };
             }
         }
-    }
-
-    fn on_exit(&self, _state_controller: &mut StateController) {
     }
 }

@@ -1,10 +1,10 @@
-use crate::{warn};
 use crate::state_machine::{ScreepState, StateController, TickResult};
+use crate::warn;
 use screeps::{
-    constants::{ResourceType},
+    constants::ResourceType,
     local::ObjectId,
     objects::{Creep, Source},
-    HasPosition
+    HasPosition,
 };
 
 /// Harvest energy from the source
@@ -19,9 +19,14 @@ impl HarvestState {
 }
 
 impl ScreepState for HarvestState {
-    fn on_start(&self, creep: &Creep, state_controller: &mut StateController) {
+    fn on_start(&self, creep: &Creep, _sc: &mut StateController) {
         let _ = creep.say("⚡", false);
     }
+
+    fn get_state_name(&self) -> &'static str {
+        "HarvestState"
+    }
+
     fn tick(&mut self, creep: &Creep) -> TickResult {
         // Check if we have any free capacity to harvest energy
         if creep.store().get_free_capacity(Some(ResourceType::Energy)) == 0 {
@@ -41,9 +46,5 @@ impl ScreepState for HarvestState {
         }
 
         TickResult::Continue
-    }
-
-    fn on_exit(&self, state_controller: &mut StateController) {
-        return;
     }
 }

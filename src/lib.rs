@@ -2,30 +2,28 @@ extern crate core;
 
 use std::{
     cell::RefCell,
-    collections::{hash_map::Entry, HashMap, HashSet},
+    collections::{HashMap, HashSet},
 };
 
+use crate::state_machine::StateController;
 use js_sys::{JsString, Object, Reflect};
 use log::*;
 use screeps::{
-    action_error_codes::*,
     constants::{Part, ResourceType},
     enums::StructureObject,
     find, game,
-    local::ObjectId,
-    objects::{Creep, Room, Source, StructureController},
+    objects::Room,
     prelude::*,
 };
-use wasm_bindgen::prelude::*;
 use state_machine::ScreepState;
-use crate::state_machine::StateController;
+use wasm_bindgen::prelude::*;
 
-mod logging;
-mod state_machine;
-mod harvest_state;
-mod upgrade_state;
 mod build_state;
 mod feed_structure_state;
+mod harvest_state;
+mod logging;
+mod state_machine;
+mod upgrade_state;
 
 // this is one way to persist data between ticks within Rust's memory, as opposed to
 // keeping state in memory on game objects - but will be lost on global resets!
@@ -42,28 +40,25 @@ static INIT_LOGGING: std::sync::Once = std::sync::Once::new();
 pub fn game_loop() {
     INIT_LOGGING.call_once(|| {
         // show all output of Info level, adjust as needed
-        logging::setup_logging(logging::Info);
+        // logging::setup_logging(logging::Info);
+        // logging::setup_logging(logging::Warn);
+        logging::setup_logging(logging::Trace);
     });
 
     debug!("loop starting! CPU: {}", game::cpu::get_used());
 
-    let mut state_controller = STATE_CONTROLLER.with(|state_controller_refcell| {
+    STATE_CONTROLLER.with(|state_controller_refcell| {
         let mut sc = state_controller_refcell.borrow_mut();
-        // sc.run_tick();
         // mutably borrow the creep_targets refcell, which is holding our creep target locks
         // in the wasm heap
         CREEP_STATES.with(|creep_targets_refcell| {
             let mut creep_targets = creep_targets_refcell.borrow_mut();
-            // mutably borrow the state controller refcell, which is holding our state machine
-
-            debug!("running creeps");
+            // debug!("running creeps");
             for creep in game::creeps().values() {
-                // run_creep(&creep, &mut creep_targets);
                 sc.run_tick(&creep, &mut creep_targets);
             }
         });
     });
-
 
     debug!("running spawns");
     let mut additional = 0;
@@ -72,7 +67,10 @@ pub fn game_loop() {
     if creep_count < 5 {
         for spawn in game::spawns().values() {
             info!("running spawn {}", spawn.name());
-            info!("Energy available: {}", spawn.room().unwrap().energy_available());
+            info!(
+                "Energy available: {}",
+                spawn.room().unwrap().energy_available()
+            );
 
             let body = get_best_worker_body(&spawn.room().unwrap());
             if spawn.room().unwrap().energy_available() >= body.iter().map(|p| p.cost()).sum() {
@@ -98,6 +96,7 @@ pub fn game_loop() {
         }
 
         // grab `Memory.creeps` (if it exists)
+        #[allow(deprecated)]
         if let Ok(memory_creeps) = Reflect::get(&screeps::memory::ROOT, &JsString::from("creeps")) {
             // convert from JsValue to Object
             let memory_creeps: Object = memory_creeps.unchecked_into();
@@ -118,7 +117,7 @@ pub fn game_loop() {
     info!("done! cpu: {}", game::cpu::get_used())
 }
 
-// This function returns the best worker body based on the current game state.
+/// This function returns the best worker body based on the current game state.
 fn get_best_worker_body(room: &Room) -> Vec<Part> {
     let mut base_body = vec![Part::Move, Part::Move, Part::Carry, Part::Work];
     let energy_available: u32 = get_total_upgrade_energy(room);
@@ -144,15 +143,16 @@ fn get_best_worker_body(room: &Room) -> Vec<Part> {
     return base_body;
 }
 
+/// The max capacity of energy available for upgrades in a room.
+/// This is the sum of the spawns and any extensions in the room.
 fn get_total_upgrade_energy(room: &Room) -> u32 {
     let mut energy_available: u32 = 0;
     for structure in room.find(find::STRUCTURES, None).iter() {
         if let StructureObject::StructureSpawn(spawn) = structure {
             energy_available += spawn.store().get_capacity(Some(ResourceType::Energy));
-        }
-        else if let StructureObject::StructureExtension(extension) = structure {
+        } else if let StructureObject::StructureExtension(extension) = structure {
             energy_available += extension.store().get_capacity(Some(ResourceType::Energy));
         }
     }
-    return energy_available;
+    energy_available
 }
