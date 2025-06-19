@@ -1,8 +1,8 @@
 use crate::screep_states::*;
 use crate::utils::prelude::*;
-use crate::info;
+use crate::{info, utils};
 use log::warn;
-use screeps::{constants::ResourceType, enums::StructureObject, find, objects::Creep, prelude::*};
+use screeps::{constants::ResourceType, enums::StructureObject, find, objects::Creep, prelude::*, Part, Room};
 
 use super::{Specialisation, StateController};
 
@@ -23,7 +23,7 @@ impl SCGeneralist {
 
 impl StateController for SCGeneralist {
     fn get_name(&self) -> &'static str {
-        "Generalist"
+        Specialisation::Generalist.into()
     }
 
     fn current_state(&self) -> &Box<dyn ScreepState> {
@@ -106,6 +106,31 @@ impl StateController for SCGeneralist {
         // return idle state if no other states are compatible
         info!("Starting Idle State for creep {}", creep.name());
         Box::new(IdleState {})
+    }
+
+    fn get_best_worker_body(&self, room: &Room) -> Vec<Part> {
+        let mut base_body = vec![Part::Move, Part::Move, Part::Carry, Part::Work];
+        let energy_available: u32 = utils::get_total_upgrade_energy(room);
+        // info!("Total available: {}", energy_available);
+        let mut cost = base_body.iter().map(|p| p.cost()).sum::<u32>();
+        while cost < energy_available {
+            if cost + Part::Work.cost() <= energy_available {
+                base_body.push(Part::Work);
+                cost += Part::Work.cost();
+            }
+
+            if cost + Part::Move.cost() <= energy_available {
+                base_body.push(Part::Move);
+                cost += Part::Move.cost();
+            }
+
+            if cost + Part::Carry.cost() <= energy_available {
+                base_body.push(Part::Carry);
+                cost += Part::Carry.cost();
+            }
+        }
+
+        base_body
     }
 
     fn get_memory(&self) -> CreepMemory {

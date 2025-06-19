@@ -69,9 +69,7 @@ pub trait StateController {
     fn choose_next_state(&mut self, creep: &Creep) -> Box<dyn ScreepState>;
 
     /// Get the best worker body for the current state controller
-    fn get_best_worker_body(&self, _room: &Room, _max_energy: u32) -> Vec<Part> {
-        vec![Part::Move, Part::Move, Part::Carry, Part::Work]
-    }
+    fn get_best_worker_body(&self, _room: &Room) -> Vec<Part>;
 
     fn get_memory(&self) -> CreepMemory;
 }

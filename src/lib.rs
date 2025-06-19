@@ -21,8 +21,6 @@ use state_controllers::SCGeneralist;
 // this is one way to persist data between ticks within Rust's memory, as opposed to
 // keeping state in memory on game objects - but will be lost on global resets!
 thread_local! {
-    // static CREEP_STATES: RefCell<HashMap<String, Box<dyn ScreepState>>> = RefCell::new(HashMap::new());
-    static STATE_CONTROLLERS: RefCell<HashMap<String, Box<dyn ScreepState>>> = RefCell::new(HashMap::new());
     static STATE_MANAGER: RefCell<SCManager> = RefCell::new(SCManager::new());
 }
 
@@ -39,7 +37,7 @@ pub fn game_loop() {
         logging::setup_logging(logging::Trace);
     });
 
-    debug!("loop starting! CPU: {}", game::cpu::get_used());
+    // debug!("loop starting! CPU: {}", game::cpu::get_used());
     STATE_MANAGER.with(|state_manager_refcell| {
         let mut state_manager = state_manager_refcell.borrow_mut();
         // run the tick for all state controllers
@@ -75,31 +73,5 @@ pub fn game_loop() {
         }
     }
 
-    info!("done! cpu: {}", game::cpu::get_used())
-}
-
-/// This function returns the best worker body based on the current game state.
-fn get_best_worker_body(room: &Room) -> Vec<Part> {
-    let mut base_body = vec![Part::Move, Part::Move, Part::Carry, Part::Work];
-    let energy_available: u32 = utils::get_total_upgrade_energy(room);
-    info!("Total available: {}", energy_available);
-    let mut cost = base_body.iter().map(|p| p.cost()).sum::<u32>();
-    while cost < energy_available {
-        if cost + Part::Work.cost() <= energy_available {
-            base_body.push(Part::Work);
-            cost += Part::Work.cost();
-        }
-
-        if cost + Part::Move.cost() <= energy_available {
-            base_body.push(Part::Move);
-            cost += Part::Move.cost();
-        }
-
-        if cost + Part::Carry.cost() <= energy_available {
-            base_body.push(Part::Carry);
-            cost += Part::Carry.cost();
-        }
-    }
-
-    return base_body;
+    // info!("done! cpu: {}", game::cpu::get_used())
 }
