@@ -32,6 +32,24 @@ where
     Some(nearest.clone().id())
 }
 
+/// Gets an object at a specific index in the room's find results.
+pub fn find_object_at_index<R>(
+    room: &Room,
+    index: u8,
+    find_const: impl FindConstant<Item = R>,
+) -> Option<ObjectId<R>>
+where
+    R: HasPosition + Clone + HasId,
+{
+    let objects = room.find(find_const, None);
+    if objects.is_empty() || index as usize >= objects.len() {
+        return None;
+    }
+    // Get the object at the specified index
+    let object = &objects[index as usize];
+    Some(object.clone().id())
+}
+
 /// Get the nearest construction site based on distance from the creep
 /// For some reason construction sites are not wrapped in ObjectId, so we can't use the same function as above
 pub fn find_nearest_construction_site(creep: &Creep, room: &Room) -> Option<ConstructionSite> {

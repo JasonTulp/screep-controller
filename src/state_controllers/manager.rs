@@ -4,6 +4,7 @@ use screeps::{find, game, objects::Creep, Room, SharedCreepProperties, SpawnOpti
 use crate::info;
 use super::{StateController, SCGeneralist, Specialisation};
 use crate::screep_states::CreepMemory;
+use crate::state_controllers::miner::SCMiner;
 
 /// The SCManager is responsible for managing the state controllers of all creeps in the room.
 pub struct SCManager {
@@ -51,23 +52,14 @@ impl SCManager {
                 // Determine specialisation, and get body parts and memory
                 let specialisation = self.get_next_specialty(&spawn.room().unwrap());
                 let memory = CreepMemory::new(specialisation.clone());
-                let body = match specialisation {
-                    Specialisation::Generalist => {
-                        let sc = SCGeneralist::new();
-                        sc.get_best_worker_body(&spawn.room().unwrap())
-                    },
-                    // Add more specializations here as needed
-                    _ => {
-                        let sc = SCGeneralist::new();
-                        sc.get_best_worker_body(&spawn.room().unwrap())
-                    }
-                };
-                
+                let controller: Box<dyn StateController> = specialisation.clone().into();
+                let body = controller.get_best_worker_body(&spawn.room().unwrap());
+
                 // If we can spawn, spawn a new creep
                 if spawn.room().unwrap().energy_available() >= body.iter().map(|p| p.cost()).sum() {
                     // create a unique name, spawn.
                     let name_base = game::time();
-                    let name = format!("{}-{}", name_base, additional);
+                    let name = format!("{:?}-{}-{}", specialisation, name_base, additional);
                     let options = SpawnOptions::new()
                         .memory(memory.into());
                     match spawn.spawn_creep_with_options(&body, &name, &options) {
@@ -85,14 +77,10 @@ impl SCManager {
         info!("Spawning new state controller for creep {}", creep.name());
         let memory = creep.memory();
         let memory: CreepMemory = memory.into();
-        let new_controller = match memory.specialisation() {
-            Specialisation::Generalist => Box::new(SCGeneralist::new()),
-            // Add more specializations here as needed
-            _ => Box::new(SCGeneralist::new()),
-        };
         // Add the new controller to the map
+        // Can use into here due to impl on Specialisation
         self.state_controllers
-            .insert(creep.name().to_string(), new_controller);
+            .insert(creep.name().to_string(), memory.specialisation().clone().into());
     }
 
     /// Get the next specialty for a creep based on the current room state
@@ -123,9 +111,10 @@ impl SCManager {
         //     // If we have enough generalists, we can spawn a miner or hauler
         //     if miner_count < 1 {
         //         return Specialisation::Miner;
-        //     } else if hauler_count < 1 {
-        //         return Specialisation::Hauler;
         //     }
+        //     // } else if hauler_count < 1 {
+        //     //     return Specialisation::Hauler;
+        //     // }
         // }
         Specialisation::Generalist
     }
