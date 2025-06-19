@@ -12,8 +12,8 @@ mod build;
 mod feed_structure;
 mod harvest;
 mod idle;
-mod upgrade;
 mod memory;
+mod upgrade;
 pub use memory::CreepMemory;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -37,12 +37,31 @@ impl From<StateName> for &'static str {
     }
 }
 
+impl From<&'static str> for StateName {
+    fn from(state: &'static str) -> Self {
+        match state {
+            "Harvest" => StateName::Harvest,
+            "Upgrade" => StateName::Upgrade,
+            "Build" => StateName::Build,
+            "FeedStructure" => StateName::FeedStructure,
+            _ => StateName::Idle,
+        }
+    }
+}
+
 // What state is this screep in
 pub trait ScreepState {
-    /// Called when the state is started, can be used to initialize counters or send messages
-    fn on_start(&self, creep: &Creep) {
-        let _ = creep.say("🌀", false);
+    fn update_memory(&self, creep: &Creep) {
+        let memory: CreepMemory = creep.memory().into();
+        let updated = CreepMemory {
+            current_state: self.get_state_name().into(),
+            specialisation: memory.specialisation,
+        };
+        creep.set_memory(&updated.into());
     }
+
+    /// Called when the state is started, can be used to initialize counters or send messages
+    fn on_start(&self, creep: &Creep);
 
     /// Log the current state of the creep for debugging purposes
     fn log_state(&self, creep: &Creep) {

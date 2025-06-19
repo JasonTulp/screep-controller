@@ -21,6 +21,7 @@ impl BuildState {
 impl ScreepState for BuildState {
     fn on_start(&self, creep: &Creep) {
         let _ = creep.say("⚒️", false);
+        self.update_memory(creep);
     }
 
     fn get_state_name(&self) -> &'static str {

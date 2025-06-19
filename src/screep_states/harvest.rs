@@ -1,5 +1,7 @@
+use crate::screep_states::CreepMemory;
+
 use super::{ScreepState, StateName, TickResult};
-use log::warn;
+use log::{info, warn};
 use screeps::{
     constants::ResourceType,
     local::ObjectId,
@@ -21,6 +23,7 @@ impl HarvestState {
 impl ScreepState for HarvestState {
     fn on_start(&self, creep: &Creep) {
         let _ = creep.say("⚡", false);
+        self.update_memory(creep);
     }
 
     fn get_state_name(&self) -> &'static str {
