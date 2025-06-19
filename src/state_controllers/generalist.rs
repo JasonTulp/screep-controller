@@ -117,25 +117,24 @@ impl StateController for SCGeneralist {
         Box::new(IdleState {})
     }
 
+    // Create a generalist with both Carry and Work with one Move per Carry and Work
     fn get_best_worker_body(&self, room: &Room) -> Vec<Part> {
-        let mut base_body = vec![Part::Move, Part::Move, Part::Carry, Part::Work];
+        let mut base_body = vec![];
+        let blueprint = vec![
+            Part::Move,
+            Part::Carry,
+            Part::Work,
+            Part::Move,
+        ];
+        let blueprint_cost = blueprint.iter().map(|p: &Part| p.cost()).sum::<u32>();
         let energy_available: u32 = utils::get_total_upgrade_energy(room);
-        // info!("Total available: {}", energy_available);
-        let mut cost = base_body.iter().map(|p| p.cost()).sum::<u32>();
-        while cost < energy_available {
-            if cost + Part::Work.cost() <= energy_available {
-                base_body.push(Part::Work);
-                cost += Part::Work.cost();
-            }
+        let mut cost = base_body.iter().map(|p: &Part| p.cost()).sum::<u32>();
 
-            if cost + Part::Move.cost() <= energy_available {
-                base_body.push(Part::Move);
-                cost += Part::Move.cost();
-            }
-
-            if cost + Part::Carry.cost() <= energy_available {
-                base_body.push(Part::Carry);
-                cost += Part::Carry.cost();
+        // keep adding parts from blueprint until we reach the energy limit
+        while cost + blueprint_cost <= energy_available {
+            for part in blueprint.iter() {
+                base_body.push(*part);
+                cost += part.cost();
             }
         }
 

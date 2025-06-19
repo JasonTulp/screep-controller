@@ -172,25 +172,20 @@ impl StateController for SCMiner {
     /// Get the best worker body for this state controller
     fn get_best_worker_body(&self, room: &Room) -> Vec<Part> {
         let mut base_body: Vec<Part> = vec![];
-        let target_body = vec![
+        let blueprint = vec![
             Part::Move,
             Part::Carry,
             Part::Work,
             Part::Work,
-            Part::Move,
             Part::Work,
             Part::Work,
-            Part::Move,
             Part::Work,
             Part::Work,
-            Part::Move,
-            Part::Work,
-            Part::Move,
         ];
         let energy_available: u32 = utils::get_total_upgrade_energy(room);
         let mut cost = base_body.iter().map(|p| p.cost()).sum::<u32>();
         // keep adding parts from target until we reach the energy limit
-        for part in target_body.iter() {
+        for part in blueprint.iter() {
             if cost + part.cost() <= energy_available {
                 base_body.push(*part);
                 cost += part.cost();

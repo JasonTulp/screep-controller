@@ -87,38 +87,24 @@ impl StateController for SCBuilder {
 
     fn get_best_worker_body(&self, room: &Room) -> Vec<Part> {
         let mut base_body = vec![];
-        let target_body = vec![
+        let blueprint = vec![
             Part::Move,
             Part::Carry,
             Part::Work,
-            Part::Carry,
-            Part::Move,
-            Part::Carry,
             Part::Work,
             Part::Move,
-            Part::Carry,
-            Part::Work,
-            Part::Move,
-            Part::Carry,
-            Part::Work,
             Part::Move,
         ];
+        let blueprint_cost = blueprint.iter().map(|p: &Part| p.cost()).sum::<u32>();
         let energy_available: u32 = utils::get_total_upgrade_energy(room);
         let mut cost = base_body.iter().map(|p: &Part| p.cost()).sum::<u32>();
-        // keep adding parts from target until we reach the energy limit
-        for part in target_body.iter() {
-            if cost + part.cost() <= energy_available {
+
+        // keep adding parts from blueprint until we reach the energy limit
+        while cost + blueprint_cost <= energy_available {
+            for part in blueprint.iter() {
                 base_body.push(*part);
                 cost += part.cost();
-            } else {
-                break;
             }
-        }
-
-        // Fill the rest with move (They are only 50 energy each)
-        while cost + Part::Move.cost() <= energy_available {
-            base_body.push(Part::Move);
-            cost += Part::Move.cost();
         }
 
         base_body

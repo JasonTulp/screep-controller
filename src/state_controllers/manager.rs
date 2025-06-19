@@ -42,7 +42,7 @@ impl SCManager {
         let mut additional = 0;
         let creep_count = game::creeps().values().count();
         // info!("creep count: {}", creep_count);
-        if creep_count < 6 {
+        if creep_count < 10 {
             for spawn in game::spawns().values() {
                 info!("\n\n\n");
                 info!("====> running spawn {}", spawn.name());
