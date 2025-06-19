@@ -8,7 +8,7 @@ pub struct IdleState;
 impl ScreepState for IdleState {
     fn on_start(&self, creep: &Creep) {
         let _ = creep.say("💤", false);
-        self.update_memory(creep);
+        self.update_state_memory(creep);
     }
 
     fn get_state_name(&self) -> StateName {

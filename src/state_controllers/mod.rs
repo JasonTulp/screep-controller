@@ -1,8 +1,10 @@
 mod generalist;
 mod manager;
 mod miner;
+mod hauler;
 
 use std::cmp::PartialEq;
+use log::warn;
 // Contains core State Controller logic for managing Screep states
 use crate::screep_states::*;
 use screeps::{find, objects::Creep, prelude::*, Part, Room, SpawnOptions};
@@ -10,6 +12,7 @@ use serde::{Deserialize, Serialize};
 
 pub use generalist::SCGeneralist;
 pub use manager::SCManager;
+use crate::state_controllers::hauler::SCHauler;
 use crate::state_controllers::miner::SCMiner;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -36,7 +39,11 @@ impl From<Specialisation> for Box<dyn StateController> {
         match specialisation {
             Specialisation::Generalist => Box::new(SCGeneralist::new()),
             Specialisation::Miner => Box::new(SCMiner::new()),
-            _ => Box::new(SCGeneralist::new()), // Default to Generalist for unknown or unsupported specialisations
+            Specialisation::Hauler => Box::new(SCHauler::new()),
+            _ => {
+                warn!("Unknown or unsupported specialisation: {:?} defaulting to Generalist", specialisation);
+                Box::new(SCGeneralist::new())
+            }, // Default to Generalist for unknown or unsupported specialisations
         }
     }
 }
@@ -83,8 +90,6 @@ pub trait StateController {
 
     /// Get the best worker body for the current state controller
     fn get_best_worker_body(&self, _room: &Room) -> Vec<Part>;
-
-    fn get_memory(&self) -> CreepMemory;
 
     // Count instances of a certain state in the room
     fn count_state_instances(&self, room: &Room, state: &StateName) -> u8 {

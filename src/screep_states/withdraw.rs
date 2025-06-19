@@ -8,26 +8,27 @@ use screeps::{
     objects::{Creep, Source},
     prelude::*,
 };
+use wasm_bindgen::JsCast;
 
 /// Harvest energy from the source
-pub struct HarvestState {
-    source: ObjectId<Source>,
+pub struct WithdrawState<T: Withdrawable + MaybeHasId + JsCast> {
+    structure: ObjectId<T>,
 }
 
-impl HarvestState {
-    pub fn new(source: ObjectId<Source>) -> Self {
-        HarvestState { source }
+impl<T: Withdrawable + MaybeHasId + JsCast> WithdrawState<T> {
+    pub fn new(structure: ObjectId<T>) -> Self {
+        WithdrawState { structure }
     }
 }
 
-impl ScreepState for HarvestState {
+impl<T: Withdrawable + MaybeHasId + JsCast> ScreepState for WithdrawState<T> {
     fn on_start(&self, creep: &Creep) {
-        let _ = creep.say("⚡", false);
+        let _ = creep.say("📤", false);
         self.update_state_memory(creep);
     }
 
     fn get_state_name(&self) -> StateName{
-        StateName::Harvest
+        StateName::Withdraw
     }
 
     fn tick(&self, creep: &Creep) -> TickResult {
@@ -35,17 +36,17 @@ impl ScreepState for HarvestState {
         if creep.store().get_free_capacity(Some(ResourceType::Energy)) == 0 {
             return TickResult::Exit;
         }
-        let Some(source) = self.source.resolve() else {
+        let Some(structure) = self.structure.resolve() else {
             return TickResult::Exit;
         };
 
-        if creep.pos().is_near_to(source.pos()) {
-            if creep.harvest(&source).is_err() {
+        if creep.pos().is_near_to(structure.pos()) {
+            if creep.withdraw(&structure, ResourceType::Energy, None).is_err() {
                 warn!("couldn't harvest for some unknown reason");
                 return TickResult::Exit;
             };
         } else {
-            let _ = creep.move_to(&source);
+            let _ = creep.move_to(&structure);
         }
 
         TickResult::Continue

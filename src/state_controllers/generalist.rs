@@ -9,14 +9,12 @@ use super::{Specialisation, StateController};
 /// Generalist State Controller for managing a sawdcreep that performs a variety of tasks
 pub struct SCGeneralist {
     pub current_state: Box<dyn ScreepState>,
-    pub creep_memory: CreepMemory,
 }
 
 impl SCGeneralist {
     pub fn new() -> Self {
         SCGeneralist {
             current_state: Box::new(IdleState {}),
-            creep_memory: CreepMemory::new(Specialisation::Generalist),
         }
     }
 }
@@ -40,7 +38,6 @@ impl StateController for SCGeneralist {
         if energy == 0 {
             // Attempt to find some sources to harvest
             if let Some(source) = find_nearest_object(creep, &room, find::SOURCES_ACTIVE) {
-                info!("Starting Harvest State for creep {}", creep.name());
                 return Box::new(HarvestState::new(source));
             } else {
                 warn!("No sources found for creep {}", creep.name());
@@ -56,10 +53,6 @@ impl StateController for SCGeneralist {
             for structure in room.find(find::STRUCTURES, None).iter() {
                 if let StructureObject::StructureSpawn(spawn) = structure {
                     if spawn.store().get_free_capacity(Some(ResourceType::Energy)) > 0 {
-                        info!(
-                            "Starting Feed spawn Structure State for creep {}",
-                            creep.name()
-                        );
                         return Box::new(
                             FeedStructureState::<screeps::objects::StructureSpawn>::new(spawn.id()),
                         );
@@ -70,16 +63,26 @@ impl StateController for SCGeneralist {
                         .get_free_capacity(Some(ResourceType::Energy))
                         > 0
                     {
-                        info!(
-                            "Starting Feed Extension Structure State for creep {}",
-                            creep.name()
-                        );
                         return Box::new(
                             FeedStructureState::<screeps::objects::StructureExtension>::new(
                                 extension.id(),
                             ),
                         );
                     }
+                }
+            }
+        }
+
+        // Check if we have towers that need energy
+        for structure in room.find(find::STRUCTURES, None).iter() {
+            if let StructureObject::StructureTower(tower) = structure {
+                if tower.store().get_free_capacity(Some(ResourceType::Energy)) > 0
+                {
+                    return Box::new(
+                        FeedStructureState::<screeps::objects::StructureTower>::new(
+                            tower.id(),
+                        ),
+                    );
                 }
             }
         }
@@ -97,14 +100,12 @@ impl StateController for SCGeneralist {
         if energy > 0 {
             for structure in room.find(find::STRUCTURES, None).iter() {
                 if let StructureObject::StructureController(controller) = structure {
-                    info!("Starting Upgrade State for creep {}", creep.name());
                     return Box::new(UpgradeState::new(controller.id()));
                 }
             }
         }
 
         // return idle state if no other states are compatible
-        info!("Starting Idle State for creep {}", creep.name());
         Box::new(IdleState {})
     }
 
@@ -131,9 +132,5 @@ impl StateController for SCGeneralist {
         }
 
         base_body
-    }
-
-    fn get_memory(&self) -> CreepMemory {
-        self.creep_memory.clone()
     }
 }

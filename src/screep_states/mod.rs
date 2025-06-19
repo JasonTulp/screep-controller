@@ -2,7 +2,8 @@ pub use build::BuildState;
 pub use feed_structure::FeedStructureState;
 pub use harvest::HarvestState;
 pub use idle::IdleState;
-use log::info;
+pub use withdraw::WithdrawState;
+use log::{debug, info};
 use screeps::objects::Creep;
 use screeps::SharedCreepProperties;
 use serde::{Deserialize, Serialize};
@@ -14,6 +15,8 @@ mod harvest;
 mod idle;
 mod memory;
 mod upgrade;
+mod withdraw;
+
 pub use memory::CreepMemory;
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
@@ -23,6 +26,7 @@ pub enum StateName {
     Build,
     FeedStructure,
     Idle,
+    Withdraw,
 }
 
 impl From<StateName> for &'static str {
@@ -33,13 +37,14 @@ impl From<StateName> for &'static str {
             StateName::Build => "Build",
             StateName::FeedStructure => "FeedStructure",
             StateName::Idle => "Idle",
+            StateName::Withdraw => "Withdraw",
         }
     }
 }
 
 // What state is this screep in
 pub trait ScreepState {
-    fn update_memory(&self, creep: &Creep) {
+    fn update_state_memory(&self, creep: &Creep) {
         let mut memory: CreepMemory = creep.memory().into();
         memory.set_current_state(self.get_state_name());
         creep.set_memory(&memory.into());
@@ -51,7 +56,7 @@ pub trait ScreepState {
     /// Log the current state of the creep for debugging purposes
     fn log_state(&self, creep: &Creep) {
         let state_str: &'static str = self.get_state_name().into();
-        info!(
+        debug!(
             "-> Creep {} is in {} state.",
             creep.name(),
             state_str

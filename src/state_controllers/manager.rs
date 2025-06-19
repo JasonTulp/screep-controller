@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use log::warn;
-use screeps::{find, game, objects::Creep, Room, SharedCreepProperties, SpawnOptions};
+use screeps::{find, game, objects::Creep, Room, SharedCreepProperties, SpawnOptions, StructureObject};
 use crate::info;
 use super::{StateController, SCGeneralist, Specialisation};
 use crate::screep_states::CreepMemory;
@@ -85,6 +85,14 @@ impl SCManager {
 
     /// Get the next specialty for a creep based on the current room state
     fn get_next_specialty(&mut self, room: &Room) -> Specialisation {
+        // check if there is a storage in the room, the hauler and miner combo only work
+        // if there is a storage and some containers, but the storage comes last
+        // Actually maybe not, the hauler can just fallback to upgrading the controller
+        // let storage_exists = room.find(find::STRUCTURES, None)
+        //     .iter()
+        //     .any(|s| matches!(s, StructureObject::StructureStorage(_)));
+        // if (!storage_exists) { return Specialisation::Generalist; }
+
         // Get all existing specializations in room
         let mut total = 0;
         let mut generalist_count = 0;
@@ -103,19 +111,27 @@ impl SCManager {
         info!("Current counts - Generalist: {}, Miner: {}, Hauler: {}",
             generalist_count, miner_count, hauler_count);
 
+        let energy_count = room.find(find::SOURCES_ACTIVE, None).len();
+        let container_count = room.find(find::STRUCTURES, None)
+            .iter()
+            .filter(|s| matches!(s, StructureObject::StructureContainer(_)))
+            .count();
+        // set to max energy or container count
+        let max_miner_count = energy_count.max(container_count);
+
         // If there are less than 3 creeps, we need a generalist to spawn
         if total < 2 {
             return Specialisation::Generalist;
         }
-        // if generalist_count >= 2 {
-        //     // If we have enough generalists, we can spawn a miner or hauler
-        //     if miner_count < 1 {
-        //         return Specialisation::Miner;
-        //     }
-        //     // } else if hauler_count < 1 {
-        //     //     return Specialisation::Hauler;
-        //     // }
-        // }
+        if generalist_count >= 2 {
+            // If we have enough generalists, we can spawn a miner or hauler
+            // Spawn one miner per energy in the room, and alternate miners to haulers
+            if miner_count < max_miner_count && miner_count <= hauler_count {
+                return Specialisation::Miner;
+            } else if hauler_count < max_miner_count {
+                return Specialisation::Hauler;
+            }
+        }
         Specialisation::Generalist
     }
 } 

@@ -10,6 +10,8 @@ pub struct CreepMemory {
     current_state: StateName,
     // What specialisation is this creep?
     specialisation: Specialisation,
+    // Optional field for additional data - skipped during serde operations
+    additional_data: Option<String>,
 }
 
 impl CreepMemory {
@@ -17,6 +19,7 @@ impl CreepMemory {
         CreepMemory {
             current_state: StateName::Idle,
             specialisation,
+            additional_data: None,
         }
     }
 
@@ -27,9 +30,17 @@ impl CreepMemory {
     pub fn specialisation(&self) -> &Specialisation {
         &self.specialisation
     }
+
+    pub fn additional_data(&self) -> Option<String> {
+        self.additional_data.clone()
+    }
     
     pub fn set_current_state(&mut self, state: StateName) {
         self.current_state = state;
+    }
+
+    pub fn set_additional_data(&mut self, data: String) {
+        self.additional_data = Some(data);
     }
 }
 
