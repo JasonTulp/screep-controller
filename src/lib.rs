@@ -4,8 +4,6 @@ use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
 };
-
-use crate::state_machine::StateController;
 use js_sys::{JsString, Object, Reflect};
 use log::*;
 use screeps::{
@@ -15,21 +13,20 @@ use screeps::{
     objects::Room,
     prelude::*,
 };
-use state_machine::ScreepState;
 use wasm_bindgen::prelude::*;
 
-mod build_state;
-mod feed_structure_state;
-mod harvest_state;
 mod logging;
 mod state_machine;
-mod upgrade_state;
+mod screep_states;
+mod state_controllers;
+
+pub use screep_states::*;
 
 // this is one way to persist data between ticks within Rust's memory, as opposed to
 // keeping state in memory on game objects - but will be lost on global resets!
 thread_local! {
     static CREEP_STATES: RefCell<HashMap<String, Box<dyn ScreepState>>> = RefCell::new(HashMap::new());
-    static STATE_CONTROLLER: RefCell<StateController> = RefCell::new(StateController::new());
+    static STATE_CONTROLLER: RefCell<state_machine::StateController> = RefCell::new(state_machine::StateController::new());
 }
 
 static INIT_LOGGING: std::sync::Once = std::sync::Once::new();

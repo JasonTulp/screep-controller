@@ -1,6 +1,12 @@
-use crate::state_machine::{ScreepState, StateController, TickResult};
+use super::{ScreepState, TickResult};
+use crate::state_machine::StateController;
+use screeps::{
+    constants::ResourceType,
+    local::ObjectId,
+    objects::Creep,
+    prelude::*,
+};
 use screeps::action_error_codes::TransferErrorCode;
-use screeps::{constants::ResourceType, local::ObjectId, objects::Creep, prelude::*};
 use wasm_bindgen::JsCast;
 
 pub struct FeedStructureState<T: Transferable + MaybeHasId + JsCast> {
@@ -19,7 +25,7 @@ impl<T: Transferable + MaybeHasId + JsCast> ScreepState for FeedStructureState<T
     }
 
     fn get_state_name(&self) -> &'static str {
-        "FeedStructureState"
+        "FeedStructure"
     }
 
     fn tick(&mut self, creep: &Creep) -> TickResult {

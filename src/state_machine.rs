@@ -1,9 +1,5 @@
-use crate::build_state::BuildState;
-use crate::feed_structure_state::FeedStructureState;
-use crate::get_total_upgrade_energy;
-use crate::harvest_state::HarvestState;
-use crate::info;
-use crate::upgrade_state::UpgradeState;
+use crate::screep_states::*;
+use crate::{get_total_upgrade_energy, info};
 use log::warn;
 use screeps::{
     constants::ResourceType,
@@ -14,45 +10,6 @@ use screeps::{
     prelude::*,
 };
 use std::collections::HashMap;
-
-// Result from a tick
-pub enum TickResult {
-    // Keep the state as-is
-    Continue,
-    // Change to a specific state
-    #[allow(dead_code)]
-    ChangeState(Box<dyn ScreepState>),
-    // exit and choose a state based on current needs
-    Exit,
-}
-
-// What state is this screep in
-pub trait ScreepState {
-    /// Called when the state is started, can be used to initialize counters or send messages
-    fn on_start(&self, creep: &Creep, _state_controller: &mut StateController) {
-        let _ = creep.say("🌀", false);
-    }
-
-    /// Log the current state of the creep for debugging purposes
-    fn log_state(&self, creep: &Creep) {
-        info!(
-            "Creep {} is in state: {}",
-            creep.name(),
-            self.get_state_name()
-        );
-    }
-
-    /// Get the name of the state for logging purposes
-    fn get_state_name(&self) -> &'static str;
-
-    /// Run a tick for the given creep and return the result
-    fn tick(&mut self, creep: &Creep) -> TickResult;
-
-    /// Called when the state is exited, can be used to clean up or reset counters
-    fn on_exit(&self, _state_controller: &mut StateController) {
-        return;
-    }
-}
 
 pub struct StateController {
     pub upgrade_creeps: u8,
@@ -208,21 +165,5 @@ impl StateController {
             .min_by_key(|site| creep.pos().get_range_to(site.pos()))?;
 
         Some(nearest_site.clone())
-    }
-}
-
-/// Idle state can be used as a fallback when no other state is applicable
-/// This state will do nothing and constantly search for a better state on each tick
-pub struct IdleState;
-impl ScreepState for IdleState {
-    fn on_start(&self, creep: &Creep, _sc: &mut StateController) {
-        let _ = creep.say("💤", false);
-    }
-    fn get_state_name(&self) -> &'static str {
-        "IdleState"
-    }
-    fn tick(&mut self, _creep: &Creep) -> TickResult {
-        // Do nothing, just idle until new state can be chosen
-        TickResult::Exit
     }
 }

@@ -1,5 +1,6 @@
-use crate::state_machine::{ScreepState, StateController, TickResult};
-use crate::warn;
+use super::{ScreepState, TickResult};
+use crate::state_machine::StateController;
+use log::warn;
 use screeps::action_error_codes::BuildErrorCode;
 use screeps::{
     constants::ResourceType,
@@ -25,7 +26,7 @@ impl ScreepState for BuildState {
     }
 
     fn get_state_name(&self) -> &'static str {
-        "BuildState"
+        "Build"
     }
 
     fn tick(&mut self, creep: &Creep) -> TickResult {

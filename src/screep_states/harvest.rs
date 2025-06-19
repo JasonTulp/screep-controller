@@ -1,10 +1,11 @@
-use crate::state_machine::{ScreepState, StateController, TickResult};
-use crate::warn;
+use super::{ScreepState, TickResult};
+use crate::state_machine::StateController;
+use log::warn;
 use screeps::{
     constants::ResourceType,
     local::ObjectId,
     objects::{Creep, Source},
-    HasPosition,
+    prelude::*,
 };
 
 /// Harvest energy from the source
@@ -24,7 +25,7 @@ impl ScreepState for HarvestState {
     }
 
     fn get_state_name(&self) -> &'static str {
-        "HarvestState"
+        "Harvest"
     }
 
     fn tick(&mut self, creep: &Creep) -> TickResult {
