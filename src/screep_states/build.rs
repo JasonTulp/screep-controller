@@ -1,4 +1,4 @@
-use super::{ScreepState, StateNames, TickResult};
+use super::{ScreepState, StateName, TickResult};
 use log::warn;
 use screeps::action_error_codes::BuildErrorCode;
 use screeps::{
@@ -24,7 +24,7 @@ impl ScreepState for BuildState {
     }
 
     fn get_state_name(&self) -> &'static str {
-        StateNames::Build.into()
+        StateName::Build.into()
     }
 
     fn tick(&self, creep: &Creep) -> TickResult {

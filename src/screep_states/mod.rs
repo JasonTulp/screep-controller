@@ -5,6 +5,7 @@ pub use idle::IdleState;
 use log::info;
 use screeps::objects::Creep;
 use screeps::SharedCreepProperties;
+use serde::{Deserialize, Serialize};
 pub use upgrade::UpgradeState;
 
 mod build;
@@ -12,8 +13,11 @@ mod feed_structure;
 mod harvest;
 mod idle;
 mod upgrade;
+mod memory;
+pub use memory::CreepMemory;
 
-pub enum StateNames {
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum StateName {
     Harvest,
     Upgrade,
     Build,
@@ -21,14 +25,14 @@ pub enum StateNames {
     Idle,
 }
 
-impl From<StateNames> for &'static str {
-    fn from(state: StateNames) -> Self {
+impl From<StateName> for &'static str {
+    fn from(state: StateName) -> Self {
         match state {
-            StateNames::Harvest => "Harvest",
-            StateNames::Upgrade => "Upgrade",
-            StateNames::Build => "Build",
-            StateNames::FeedStructure => "FeedStructure",
-            StateNames::Idle => "Idle",
+            StateName::Harvest => "Harvest",
+            StateName::Upgrade => "Upgrade",
+            StateName::Build => "Build",
+            StateName::FeedStructure => "FeedStructure",
+            StateName::Idle => "Idle",
         }
     }
 }

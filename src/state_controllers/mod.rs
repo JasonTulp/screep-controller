@@ -1,11 +1,32 @@
 // Contains core State Controller logic for managing Screep states
-use crate::screep_states::StateNames;
+use crate::screep_states::StateName;
 use crate::screep_states::*;
 use crate::utils::prelude::*;
 use crate::{get_best_worker_body, info};
 use log::warn;
 use screeps::{constants::ResourceType, enums::StructureObject, find, game, objects::Creep, prelude::*, Part, Room, SpawnOptions};
 use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
+use wasm_bindgen::JsValue;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum Specialisation {
+    Unknown,
+    Generalist,
+    Miner,
+    Hauler
+}
+
+impl From<Specialisation> for &'static str {
+    fn from(state: Specialisation) -> Self {
+        match state {
+            Specialisation::Unknown => "Unknown",
+            Specialisation::Generalist => "Generalist",
+            Specialisation::Miner => "Miner",
+            Specialisation::Hauler => "Hauler",
+        }
+    }
+}
 
 /// The SCManager is responsible for managing the state controllers of all creeps in the room.
 pub struct SCManager {
@@ -58,13 +79,11 @@ impl SCManager {
                     // create a unique name, spawn.
                     let name_base = game::time();
                     let name = format!("{}-{}", name_base, additional);
-                    // let options = SpawnOptions {
-                    //     memory: Some(serde_json::json!({
-                    //         "specialisation": "Generalist",
-                    //     })),
-                    //     ..Default::default()
-                    // };
-                    match spawn.spawn_creep(&body, &name) {
+                    let controller = SCGeneralist::new();
+                    let memory = controller.get_memory();
+                    let options = SpawnOptions::new()
+                        .memory(memory.into());
+                    match spawn.spawn_creep_with_options(&body, &name, &options) {
                         Ok(()) => additional += 1,
                         Err(e) => warn!("couldn't spawn: {:?}", e),
                     }
@@ -77,6 +96,9 @@ impl SCManager {
     /// This is where we control how many of each controller we need
     fn spawn_new_controller(&mut self, creep: &Creep) {
         warn!("Spawning new state controller for creep {}", creep.name());
+        let memory = creep.memory();
+        let memory: CreepMemory = memory.into();
+        info!("Creep memory: {:?}", memory);
         let specialisation = "Generalist"; //creep.memory().is_object().unwrap_or("Generalist");
         let new_controller = match specialisation {
             "Generalist" => Box::new(SCGeneralist::new()),
@@ -141,17 +163,21 @@ pub trait StateController {
     fn get_best_worker_body(&self, _room: &Room, _max_energy: u32) -> Vec<Part> {
         vec![Part::Move, Part::Move, Part::Carry, Part::Work]
     }
+
+    fn get_memory(&self) -> CreepMemory;
 }
 
 /// Generalist State Controller for managing a sawdcreep that performs a variety of tasks
 pub struct SCGeneralist {
     pub current_state: Box<dyn ScreepState>,
+    pub creep_memory: CreepMemory,
 }
 
 impl SCGeneralist {
     pub fn new() -> Self {
         SCGeneralist {
             current_state: Box::new(IdleState {}),
+            creep_memory: CreepMemory::new(Specialisation::Generalist),
         }
     }
 }
@@ -221,8 +247,8 @@ impl StateController for SCGeneralist {
 
         // limit build creeps to 2, only build if we have an upgrade creep
         // TODO
-        // if sc_manager.get_specialty_count(StateNames::Build.into()) < 2 &&
-        //     sc_manager.get_specialty_count(StateNames::Upgrade.into()) > 0 {
+        // if sc_manager.get_specialty_count(StateName::Build.into()) < 2 &&
+        //     sc_manager.get_specialty_count(StateName::Upgrade.into()) > 0 {
         //     if let Some(site) = find_nearest_construction_site(creep, &room) {
         //         return Box::new(BuildState::new(site.clone()));
         //     }
@@ -241,5 +267,9 @@ impl StateController for SCGeneralist {
         // return idle state if no other states are compatible
         info!("Starting Idle State for creep {}", creep.name());
         Box::new(IdleState {})
+    }
+
+    fn get_memory(&self) -> CreepMemory {
+        self.creep_memory.clone()
     }
 }

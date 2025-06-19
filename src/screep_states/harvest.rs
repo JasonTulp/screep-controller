@@ -1,4 +1,4 @@
-use super::{ScreepState, StateNames, TickResult};
+use super::{ScreepState, StateName, TickResult};
 use log::warn;
 use screeps::{
     constants::ResourceType,
@@ -24,7 +24,7 @@ impl ScreepState for HarvestState {
     }
 
     fn get_state_name(&self) -> &'static str {
-        StateNames::Harvest.into()
+        StateName::Harvest.into()
     }
 
     fn tick(&self, creep: &Creep) -> TickResult {

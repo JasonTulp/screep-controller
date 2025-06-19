@@ -26,21 +26,6 @@ thread_local! {
     static STATE_MANAGER: RefCell<SCManager> = RefCell::new(SCManager::new());
 }
 
-// #[derive(Debug, Deserialize, Serialize)]
-// struct MyStruct {
-//     id: u32,
-//     name: String,
-// }
-// 
-// use serde_wasm_bindgen::{from_value, to_value};
-// use wasm_bindgen::JsValue;
-// use serde::{Deserialize, Serialize};
-// 
-// fn convert(js_value: JsValue) -> Result<MyStruct, JsValue> {
-//     // Deserialize the JsValue into MyStruct
-//     from_value(js_value)
-// }
-
 static INIT_LOGGING: std::sync::Once = std::sync::Once::new();
 
 // add wasm_bindgen to any function you would like to expose for call from js

@@ -1,4 +1,4 @@
-use super::{ScreepState, StateNames, TickResult};
+use super::{ScreepState, StateName, TickResult};
 use screeps::action_error_codes::TransferErrorCode;
 use screeps::{constants::ResourceType, local::ObjectId, objects::Creep, prelude::*};
 use wasm_bindgen::JsCast;
@@ -19,7 +19,7 @@ impl<T: Transferable + MaybeHasId + JsCast> ScreepState for FeedStructureState<T
     }
 
     fn get_state_name(&self) -> &'static str {
-        StateNames::FeedStructure.into()
+        StateName::FeedStructure.into()
     }
 
     fn tick(&self, creep: &Creep) -> TickResult {

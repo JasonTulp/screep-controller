@@ -1,4 +1,4 @@
-use super::{ScreepState, StateNames, TickResult};
+use super::{ScreepState, StateName, TickResult};
 use screeps::objects::Creep;
 
 /// Idle state can be used as a fallback when no other state is applicable
@@ -11,7 +11,7 @@ impl ScreepState for IdleState {
     }
 
     fn get_state_name(&self) -> &'static str {
-        StateNames::Idle.into()
+        StateName::Idle.into()
     }
 
     fn tick(&self, _creep: &Creep) -> TickResult {
