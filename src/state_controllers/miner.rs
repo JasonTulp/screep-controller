@@ -118,6 +118,10 @@ impl StateController for SCMiner {
             Part::Work,
             Part::Work,
             Part::Work,
+            Part::Work,
+            Part::Work,
+            Part::Work,
+            Part::Work,
         ]
     }
 

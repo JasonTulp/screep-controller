@@ -47,7 +47,7 @@ impl StateController for SCBuilder {
         let room = creep.room().expect("couldn't resolve creep room");
 
         // Attempt to find energy if we need it
-        if let Some(energy_state) = find_energy(&room, creep, EnergyAuthority::StorageOrContainers) {
+        if let Some(energy_state) = find_energy(&room, creep, EnergyAuthority::All) {
             return energy_state;
         }
 
