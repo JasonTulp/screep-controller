@@ -146,10 +146,10 @@ impl SCManager {
                 return Specialisation::Miner;
             } else if hauler_count < max_miner_count {
                 return Specialisation::Hauler;
-            } else if builder_count < 1 {
+            } else if builder_count <= upgrader_count {
                 // If we have enough miners and haulers, we can spawn a builder
                 return Specialisation::Builder;
-            } else if upgrader_count < 1 {
+            } else {
                 // If we have enough builders, we can spawn an upgrader
                 return Specialisation::Upgrader;
             }

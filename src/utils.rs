@@ -1,10 +1,15 @@
+use std::cmp::PartialEq;
 // Helpful utility functions for the project.
-use screeps::{find, ConstructionSite, Creep, FindConstant, HasId, HasPosition, ObjectId, Position, ResourceType, Room, StructureObject};
+use screeps::{find, ConstructionSite, Creep, FindConstant, HasId, HasPosition, ObjectId, Position, ResourceType, Room, StructureContainer, StructureObject, StructureStorage, StructureTower};
+use crate::screep_states::*;
 
 pub mod prelude {
-    pub use {
-        super::find_nearest_construction_site, super::find_nearest_object,
-        super::get_total_upgrade_energy,
+    pub use super::{
+        find_nearest_construction_site,
+        get_total_upgrade_energy,
+        find_closest_tower_needing_energy, find_container_with_most_energy,
+        find_closest_container_to_position, find_base_structure_needing_energy,
+        find_object_at_index, EnergyAuthority, find_energy,
     };
 }
 
@@ -76,16 +81,191 @@ pub fn get_total_upgrade_energy(room: &Room) -> u32 {
     }
     energy_available
 }
-//
-// // Gets count of creeps in a room with a specific state
-// pub fn get_count_of_creeps_with_state(room: &Room, state_name: &str) -> usize {
-//     room.find(find::CREEPS, None)
-//         .iter()
-//         .filter(|creep| {
-//             creep
-//                 .memory()
-//                 .get("state")
-//                 .map_or(false, |s| s == state_name)
-//         })
-//         .count()
-// }
+
+#[derive(PartialEq)]
+pub enum EnergyAuthority {
+    // Can only pull energy from Storage
+    StorageOnly,
+    // Can only pull energy from Storage and containers, not the source
+    StorageOrContainers,
+    // Can pull energy from anywhere
+    All,
+}
+
+/// Called by a creep to find energy, prioritising storage, then containers, then sources
+/// If authority is set to 0, it will only look for storage. etc
+pub fn find_energy(room: &Room, creep: &Creep, authority: EnergyAuthority) -> Option<Box<dyn ScreepState>> {
+    // Check if we even need energy
+    let energy = creep.store().get_used_capacity(Some(ResourceType::Energy));
+    if energy > 0 {
+        return None;
+    }
+
+    // Find the closest storage with energy to withdraw from
+    if let Some(storage_id) = find_closest_storage(room, creep) {
+        return Some(Box::new(WithdrawState::new(storage_id)));
+    }
+    if authority == EnergyAuthority::StorageOnly {
+        return None;
+    }
+
+    // Find the closest container with energy to drain
+    if let Some(container_id) = find_closest_container_with_energy(&room, creep) {
+        return Some(Box::new(WithdrawState::new(container_id)));
+    }
+    if authority == EnergyAuthority::StorageOrContainers {
+        return None;
+    }
+
+    // Otherwise, attempt to find some sources to harvest
+    if let Some(source) = find_nearest_object(&creep.pos(), &room, find::SOURCES_ACTIVE) {
+        return Some(Box::new(HarvestState::new(source)));
+    }
+
+    None
+}
+
+
+/// Find the closest storage with energy to withdraw from
+pub fn find_closest_storage(room: &Room, creep: &Creep) -> Option<ObjectId<StructureStorage>> {
+    let mut closest_storage: Option<ObjectId<StructureStorage>> = None;
+    let mut min_distance = u32::MAX;
+    for structure in room.find(find::STRUCTURES, None).iter() {
+        if let StructureObject::StructureStorage(storage) = structure {
+            if storage
+                .store()
+                .get_used_capacity(Some(ResourceType::Energy))
+                > 0
+            {
+                let distance = creep.pos().get_range_to(storage.pos());
+                if distance < min_distance {
+                    min_distance = distance;
+                    closest_storage = Some(storage.id());
+                }
+            }
+        }
+    }
+    closest_storage
+}
+
+/// Find the closest container with energy to withdraw from
+pub fn find_closest_container_with_energy(room: &Room, creep: &Creep) -> Option<ObjectId<StructureContainer>> {
+    let mut closest_container: Option<ObjectId<StructureContainer>> = None;
+    let mut min_distance = u32::MAX;
+    for structure in room.find(find::STRUCTURES, None).iter() {
+        if let StructureObject::StructureContainer(container) = structure {
+            if container
+                .store()
+                .get_used_capacity(Some(ResourceType::Energy))
+                > 0
+            {
+                let distance = creep.pos().get_range_to(container.pos());
+                if distance < min_distance {
+                    min_distance = distance;
+                    closest_container = Some(container.id());
+                }
+            }
+        }
+    }
+    closest_container
+}
+
+/// Find the container with the most energy (useful for haulers)
+pub fn find_container_with_most_energy(room: &Room) -> Option<ObjectId<StructureContainer>> {
+    let mut best_container: Option<ObjectId<StructureContainer>> = None;
+    let mut max_energy = 0;
+    for structure in room.find(find::STRUCTURES, None).iter() {
+        if let StructureObject::StructureContainer(container) = structure {
+            if container
+                .store()
+                .get_used_capacity(Some(ResourceType::Energy))
+                > 0
+            {
+                let energy_in_container = container
+                    .store()
+                    .get_used_capacity(Some(ResourceType::Energy));
+                if energy_in_container > max_energy {
+                    max_energy = energy_in_container;
+                    best_container = Some(container.id());
+                }
+            }
+        }
+    }
+    best_container
+}
+
+/// Find the closest tower that needs energy
+pub fn find_closest_tower_needing_energy(room: &Room, creep: &Creep) -> Option<ObjectId<StructureTower>> {
+    let mut closest_tower: Option<ObjectId<StructureTower>> = None;
+    let mut min_distance = u32::MAX;
+    for structure in room.find(find::STRUCTURES, None).iter() {
+        if let StructureObject::StructureTower(tower) = structure {
+            if tower.store().get_free_capacity(Some(ResourceType::Energy)) > 0 {
+                let distance = creep.pos().get_range_to(tower.pos());
+                if distance < min_distance {
+                    min_distance = distance;
+                    closest_tower = Some(tower.id());
+                }
+            }
+        }
+    }
+    closest_tower
+}
+
+/// Find the closest container to a specific position (useful for miners finding containers near their source)
+pub fn find_closest_container_to_position(room: &Room, position: &Position) -> Option<StructureContainer> {
+    let mut closest_container: Option<screeps::objects::StructureContainer> = None;
+    let mut closest_distance = u32::MAX;
+    
+    for structure in room.find(find::STRUCTURES, None).iter() {
+        if let StructureObject::StructureContainer(container) = structure {
+            let distance = position.get_range_to(container.pos());
+            if distance < closest_distance {
+                closest_distance = distance;
+                closest_container = Some(container.clone());
+            }
+        }
+    }
+    closest_container
+}
+
+/// Find a structure that needs energy when the base energy is low (spawns and extensions)
+pub fn find_base_structure_needing_energy(room: &Room) -> Option<Box<dyn crate::screep_states::ScreepState>> {
+    // Check if the base needs energy
+    let upgrade_energy = get_total_upgrade_energy(room);
+    let energy_available = room.energy_available();
+    if energy_available >= upgrade_energy {
+        return None;
+    }
+
+    for structure in room.find(find::STRUCTURES, None).iter() {
+        if let StructureObject::StructureSpawn(spawn) = structure {
+            if spawn.store().get_free_capacity(Some(ResourceType::Energy)) > 0 {
+                return Some(Box::new(FeedStructureState::<screeps::objects::StructureSpawn>::new(spawn.id())));
+            }
+        } else if let StructureObject::StructureExtension(extension) = structure {
+            if extension
+                .store()
+                .get_free_capacity(Some(ResourceType::Energy))
+                > 0
+            {
+                return Some(Box::new(
+                    FeedStructureState::<screeps::objects::StructureExtension>::new(
+                        extension.id(),
+                    ),
+                ));
+            }
+        }
+    }
+    None
+}
+
+// Find the controller and return an Upgrade state for it
+pub fn upgrade_controller(room: &Room) -> Option<Box<dyn ScreepState>> {
+    for structure in room.find(find::STRUCTURES, None).iter() {
+        if let StructureObject::StructureController(controller) = structure {
+            return Some(Box::new(UpgradeState::new(controller.id())));
+        }
+    }
+    None
+}

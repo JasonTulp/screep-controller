@@ -1,10 +1,11 @@
-use crate::screep_states::*;
-use crate::utils;
-use crate::utils::prelude::*;
-use log::warn;
-use screeps::{constants::ResourceType, enums::StructureObject, find, objects::Creep, prelude::*, ObjectId, Part, Room};
-
 use super::{Specialisation, StateController};
+use crate::screep_states::*;
+use crate::utils::prelude::*;
+use crate::utils;
+use screeps::{
+    objects::Creep, prelude::*, Part, Room,
+};
+use crate::utils::upgrade_controller;
 
 /// Builder State Controller for managing a dedicated upgrader creep
 pub struct SCUpgrader {
@@ -34,48 +35,14 @@ impl StateController for SCUpgrader {
 
     fn choose_next_state(&mut self, creep: &Creep) -> Box<dyn ScreepState> {
         let room = creep.room().expect("couldn't resolve creep room");
-        let energy = creep.store().get_used_capacity(Some(ResourceType::Energy));
-        if energy == 0 {
-            // Find the closest container with energy to drain
-            let mut closest_container: Option<ObjectId<screeps::objects::StructureContainer>> = None;
-            let mut min_distance = u32::MAX;
-            for structure in room.find(find::STRUCTURES, None).iter() {
-                if let StructureObject::StructureContainer(container) = structure {
-                    if container
-                        .store()
-                        .get_used_capacity(Some(ResourceType::Energy))
-                        > 0
-                    {
-                        let distance = creep.pos().get_range_to(container.pos());
-                        if distance < min_distance {
-                            min_distance = distance;
-                            closest_container = Some(container.id());
-                        }
-                    }
-                }
-            }
-
-            // If we found a container with energy, harvest from it
-            if let Some(container_id) = closest_container {
-                return Box::new(WithdrawState::new(container_id));
-            } else {
-                // Otherwise, attempt to find some sources to harvest
-                if let Some(source) = find_nearest_object(&creep.pos(), &room, find::SOURCES_ACTIVE) {
-                    return Box::new(HarvestState::new(source));
-                } else {
-                    warn!("No sources found for creep {}", creep.name());
-                    return Box::new(IdleState {});
-                }
-            }
+        // Attempt to find energy if we need it
+        if let Some(energy_state) = find_energy(&room, creep, EnergyAuthority::StorageOrContainers) {
+            return energy_state;
         }
-
-        // upgrade controller if nothing to build
-        for structure in room.find(find::STRUCTURES, None).iter() {
-            if let StructureObject::StructureController(controller) = structure {
-                return Box::new(UpgradeState::new(controller.id()));
-            }
+        // upgrade controller is my main objective!
+        if let Some(upgrade_controller_state) = upgrade_controller(&room) {
+            return upgrade_controller_state;
         }
-
         // return idle state if no other states are compatible
         Box::new(IdleState {})
     }
