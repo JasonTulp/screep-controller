@@ -1,10 +1,10 @@
-use crate::screep_states::*;
-use crate::utils;
-use crate::utils::prelude::*;
-use log::warn;
-use screeps::{constants::ResourceType, enums::StructureObject, find, objects::Creep, prelude::*, ObjectId, Part, Room};
-
 use super::{Specialisation, StateController};
+use crate::screep_states::*;
+use crate::utils::prelude::*;
+use screeps::{
+     objects::Creep, prelude::*, Part,
+};
+use crate::utils::upgrade_controller;
 
 /// Generalist State Controller for managing a sawdcreep that performs a variety of tasks
 pub struct SCGeneralist {
@@ -24,6 +24,15 @@ impl StateController for SCGeneralist {
         Specialisation::Generalist.into()
     }
 
+    fn get_blueprint(&self) -> Vec<Part> {
+        vec![
+            Part::Move,
+            Part::Carry,
+            Part::Work,
+            Part::Move,
+        ]
+    }
+
     fn current_state(&self) -> &Box<dyn ScreepState> {
         &self.current_state
     }
@@ -34,67 +43,14 @@ impl StateController for SCGeneralist {
 
     fn choose_next_state(&mut self, creep: &Creep) -> Box<dyn ScreepState> {
         let room = creep.room().expect("couldn't resolve creep room");
-        let energy = creep.store().get_used_capacity(Some(ResourceType::Energy));
-        if energy == 0 {
-            // Find the closest container with energy to drain
-            let mut closest_container: Option<ObjectId<screeps::objects::StructureContainer>> = None;
-            let mut min_distance = u32::MAX;
-            for structure in room.find(find::STRUCTURES, None).iter() {
-                if let StructureObject::StructureContainer(container) = structure {
-                    if container
-                        .store()
-                        .get_used_capacity(Some(ResourceType::Energy))
-                        > 0
-                    {
-                        let distance = creep.pos().get_range_to(container.pos());
-                        if distance < min_distance {
-                            min_distance = distance;
-                            closest_container = Some(container.id());
-                        }
-                    }
-                }
-            }
-
-            // If we found a container with energy, harvest from it
-            if let Some(container_id) = closest_container {
-                return Box::new(WithdrawState::new(container_id));
-            } else {
-                // Attempt to find some sources to harvest
-                if let Some(source) = find_nearest_object(&creep.pos(), &room, find::SOURCES_ACTIVE) {
-                    return Box::new(HarvestState::new(source));
-                } else {
-                    warn!("No sources found for creep {}", creep.name());
-                    return Box::new(IdleState {});
-                }
-            }
+        // Attempt to find energy if we need it
+        if let Some(energy_state) = find_energy(&room, creep, EnergyAuthority::All) {
+            return energy_state;
         }
 
         // Check if the base needs energy
-        let upgrade_energy = get_total_upgrade_energy(&room);
-        let energy_available = room.energy_available();
-        if energy_available < upgrade_energy {
-            // Find a structure to feed energy to
-            for structure in room.find(find::STRUCTURES, None).iter() {
-                if let StructureObject::StructureSpawn(spawn) = structure {
-                    if spawn.store().get_free_capacity(Some(ResourceType::Energy)) > 0 {
-                        return Box::new(
-                            FeedStructureState::<screeps::objects::StructureSpawn>::new(spawn.id()),
-                        );
-                    }
-                } else if let StructureObject::StructureExtension(extension) = structure {
-                    if extension
-                        .store()
-                        .get_free_capacity(Some(ResourceType::Energy))
-                        > 0
-                    {
-                        return Box::new(
-                            FeedStructureState::<screeps::objects::StructureExtension>::new(
-                                extension.id(),
-                            ),
-                        );
-                    }
-                }
-            }
+        if let Some(state) = find_base_structure_needing_energy(&room) {
+            return state;
         }
 
         let build_count = self.count_state_instances(&room, &StateName::Build);
@@ -107,37 +63,11 @@ impl StateController for SCGeneralist {
         }
 
         // upgrade controller
-        for structure in room.find(find::STRUCTURES, None).iter() {
-            if let StructureObject::StructureController(controller) = structure {
-                return Box::new(UpgradeState::new(controller.id()));
-            }
+        if let Some(upgrade_controller_state) = upgrade_controller(&room) {
+            return upgrade_controller_state;
         }
 
         // return idle state if no other states are compatible
         Box::new(IdleState {})
-    }
-
-    // Create a generalist with both Carry and Work with one Move per Carry and Work
-    fn get_best_worker_body(&self, room: &Room) -> Vec<Part> {
-        let mut base_body = vec![];
-        let blueprint = vec![
-            Part::Move,
-            Part::Carry,
-            Part::Work,
-            Part::Move,
-        ];
-        let blueprint_cost = blueprint.iter().map(|p: &Part| p.cost()).sum::<u32>();
-        let energy_available: u32 = utils::get_total_upgrade_energy(room);
-        let mut cost = base_body.iter().map(|p: &Part| p.cost()).sum::<u32>();
-
-        // keep adding parts from blueprint until we reach the energy limit
-        while cost + blueprint_cost <= energy_available {
-            for part in blueprint.iter() {
-                base_body.push(*part);
-                cost += part.cost();
-            }
-        }
-
-        base_body
     }
 }

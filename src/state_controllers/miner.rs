@@ -1,9 +1,8 @@
 use super::{Specialisation, StateController};
 use crate::screep_states::*;
-use crate::utils;
-use crate::utils::find_object_at_index;
+use crate::utils::prelude::*;
 use log::warn;
-use screeps::{constants::ResourceType, enums::StructureObject, find, objects::Creep, prelude::*, Part, Room, StructureContainer};
+use screeps::{constants::ResourceType, find, objects::Creep, prelude::*, Part, Room, StructureContainer};
 
 /// Miner State Controller for mining energy and dumping it into nearby storage
 pub struct SCMiner {
@@ -109,6 +108,19 @@ impl StateController for SCMiner {
         Specialisation::Miner.into()
     }
 
+    fn get_blueprint(&self) -> Vec<Part> {
+        vec![
+            Part::Move,
+            Part::Carry,
+            Part::Work,
+            Part::Work,
+            Part::Work,
+            Part::Work,
+            Part::Work,
+            Part::Work,
+        ]
+    }
+
     fn current_state(&self) -> &Box<dyn ScreepState> {
         &self.current_state
     }
@@ -126,37 +138,21 @@ impl StateController for SCMiner {
             return Box::new(IdleState {});
         };
 
-
         if let Some(source_id) = find_object_at_index(&room, source_index, find::SOURCES_ACTIVE) {
             if energy == 0 {
                 // Go mine boy!
                 return Box::new(HarvestState::new(source_id));
             } else {
                 // find the closest container to the source
-                let mut closest_container: Option<StructureContainer> = None;
-                let mut closest_distance = u32::MAX;
-                
-                // Resolve the source to get its position
                 if let Some(source) = source_id.resolve() {
-                    for structure in room.find(find::STRUCTURES, None).iter() {
-                        if let StructureObject::StructureContainer(container) = structure {
-                            let distance = source.pos().get_range_to(container.pos());
-                            if distance < closest_distance {
-                                closest_distance = distance;
-                                closest_container = Some(container.clone());
-                            }
+                    if let Some(container) = find_closest_container_to_position(&room, &source.pos()) {
+                        if container.store().get_free_capacity(Some(ResourceType::Energy)) > 0 {
+                            return Box::new(
+                                FeedStructureState::<StructureContainer>::new(
+                                    container.id(),
+                                ),
+                            );
                         }
-                    }
-                }
-
-                if let Some(container) = closest_container {
-                    if container.store().get_free_capacity(Some(ResourceType::Energy)) > 0
-                    {
-                        return Box::new(
-                            FeedStructureState::<StructureContainer>::new(
-                                container.id(),
-                            ),
-                        );
                     }
                 }
             }
@@ -172,17 +168,8 @@ impl StateController for SCMiner {
     /// Get the best worker body for this state controller
     fn get_best_worker_body(&self, room: &Room) -> Vec<Part> {
         let mut base_body: Vec<Part> = vec![];
-        let blueprint = vec![
-            Part::Move,
-            Part::Carry,
-            Part::Work,
-            Part::Work,
-            Part::Work,
-            Part::Work,
-            Part::Work,
-            Part::Work,
-        ];
-        let energy_available: u32 = utils::get_total_upgrade_energy(room);
+        let blueprint = self.get_blueprint();
+        let energy_available: u32 = get_total_upgrade_energy(room);
         let mut cost = base_body.iter().map(|p| p.cost()).sum::<u32>();
         // keep adding parts from target until we reach the energy limit
         for part in blueprint.iter() {
