@@ -63,6 +63,9 @@ pub trait StateController {
     /// Get the name of the controller for logging purposes
     fn get_name(&self) -> &'static str;
 
+    /// Get the blueprint parts for this specialisation
+    fn get_blueprint(&self) -> Vec<Part>;
+
     /// Run a tick for the given creep and update its state
     fn run_tick(&mut self, creep: &Creep) {
         match self.current_state().tick(creep) {
@@ -99,7 +102,23 @@ pub trait StateController {
     fn choose_next_state(&mut self, creep: &Creep) -> Box<dyn ScreepState>;
 
     /// Get the best worker body for the current state controller
-    fn get_best_worker_body(&self, _room: &Room) -> Vec<Part>;
+    fn get_best_worker_body(&self, room: &Room) -> Vec<Part> {
+        let mut base_body = vec![];
+        let blueprint = self.get_blueprint();
+        let blueprint_cost = blueprint.iter().map(|p: &Part| p.cost()).sum::<u32>();
+        let energy_available: u32 = crate::utils::get_total_upgrade_energy(room);
+        let mut cost = base_body.iter().map(|p: &Part| p.cost()).sum::<u32>();
+
+        // keep adding parts from blueprint until we reach the energy limit
+        while cost + blueprint_cost <= energy_available {
+            for part in blueprint.iter() {
+                base_body.push(*part);
+                cost += part.cost();
+            }
+        }
+
+        base_body
+    }
 
     // Count instances of a certain state in the room
     fn count_state_instances(&self, room: &Room, state: &StateName) -> u8 {

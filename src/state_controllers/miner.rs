@@ -108,6 +108,19 @@ impl StateController for SCMiner {
         Specialisation::Miner.into()
     }
 
+    fn get_blueprint(&self) -> Vec<Part> {
+        vec![
+            Part::Move,
+            Part::Carry,
+            Part::Work,
+            Part::Work,
+            Part::Work,
+            Part::Work,
+            Part::Work,
+            Part::Work,
+        ]
+    }
+
     fn current_state(&self) -> &Box<dyn ScreepState> {
         &self.current_state
     }
@@ -155,16 +168,7 @@ impl StateController for SCMiner {
     /// Get the best worker body for this state controller
     fn get_best_worker_body(&self, room: &Room) -> Vec<Part> {
         let mut base_body: Vec<Part> = vec![];
-        let blueprint = vec![
-            Part::Move,
-            Part::Carry,
-            Part::Work,
-            Part::Work,
-            Part::Work,
-            Part::Work,
-            Part::Work,
-            Part::Work,
-        ];
+        let blueprint = self.get_blueprint();
         let energy_available: u32 = get_total_upgrade_energy(room);
         let mut cost = base_body.iter().map(|p| p.cost()).sum::<u32>();
         // keep adding parts from target until we reach the energy limit
